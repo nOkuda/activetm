@@ -14,14 +14,15 @@ programs and libraries installed:
 * `LAPACK`
 * `LAPACK` development headers
 
-Then run `make` in the `sampler` directory. If just running `make` didn't work,
-you may need to change the value of `lapacke_headers_location` in the Makefile.
-The default value is for a Fedora 22 system that had the `lapack-headers`
-package installed.
+Then run `make` in the `sampler` directory.
 
-To run the Python code, you will need to install the
-[`ankura`](https://github.com/jlund3/ankura) and `ctypes` modules.  It is
-possible to do this by running
+To run the Python code, you will need to install the following modules:
+
+* [`ankura`](https://github.com/jlund3/ankura)
+* `ctypes`
+* `numpy`
+
+It is possible to install these modules by running
 
 ```
 pip install -r requirements.txt

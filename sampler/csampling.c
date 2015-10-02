@@ -1,4 +1,4 @@
-#include "lapacke.h"
+#include <lapacke/lapacke.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
