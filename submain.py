@@ -61,11 +61,8 @@ if __name__ == '__main__':
     parser.add_argument('working_dir', help='ActiveTM directory '
             'available to hosts (should be a network path)')
     parser.add_argument('settings', help=\
-            '''the path to a file with the following form:
-                [key]<WHITESPACE>[value]
-            where [key] is a setting name and [value] is the value for that\
-            setting.  For a full discussion on what [key]s and [value]s are\
-            valid, see README.md in the root ActiveTM directory''')
+            '''the path to a file containing settings, as described in \
+            README.md in the root ActiveTM directory''')
     parser.add_argument('outputdir', help='directory for output')
     parser.add_argument('label', help='identifying label')
     args = parser.parse_args()
@@ -73,8 +70,10 @@ if __name__ == '__main__':
     settings = parse_settings(args.settings)
     trueoutputdir = os.path.join(args.outputdir, settings['group'])
     if not os.path.exists(trueoutputdir):
-        print 'Error:  {:s} does not exist'.format(args.outputdir)
-        sys.exit(1)
+        try:
+            os.makedirs(trueoutputdir)
+        except OSError:
+            pass
 
     rng = random.Random(int(settings['seed']))
     model = models.models.build(rng, settings)
@@ -111,7 +110,7 @@ if __name__ == '__main__':
     metric = active.evaluate.pR2(model, test_words, test_labels,
             test_labels_mean)
     results.append([len(labeled_doc_ids),
-            datetime.timedelta(seconds=time.time()-start), metric])
+            datetime.timedelta(seconds=time.time()-start).total_seconds(), metric])
     while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
         candidates = active.select.reservoir(list(unlabeled_doc_ids), rng,
                 CAND_SIZE)
@@ -125,7 +124,7 @@ if __name__ == '__main__':
         metric = active.evaluate.pR2(model, test_words, test_labels,
                 test_labels_mean)
         results.append([len(labeled_doc_ids),
-                datetime.timedelta(seconds=time.time()-start), metric])
+                datetime.timedelta(seconds=time.time()-start).total_seconds(), metric])
     model.cleanup()
 
     output = []
