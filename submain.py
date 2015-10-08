@@ -12,6 +12,7 @@ from ankura import tokenize
 
 import activetm.active.evaluate as evaluate
 import activetm.active.select as select
+import activetm.dataset
 import activetm.models as models
 
 def parse_settings(filename):
@@ -33,17 +34,6 @@ def get_dataset(settings):
     if settings['pregenerate'] == 'YES':
         PIPELINE.append((ankura.pregenerate_doc_tokens))
     return ankura.run_pipeline(PIPELINE)
-
-def get_labels(dataset, filename):
-    pre_labels = {}
-    with open(filename) as ifh:
-        for line in ifh:
-            data = line.strip().split()
-            pre_labels[data[0]] = float(data[1])
-    labels = []
-    for doc_id in range(dataset.num_docs):
-        labels.append(pre_labels[dataset.titles[doc_id]])
-    return labels
 
 def partition_data_ids(num_docs, rng, settings):
     TEST_SIZE = int(settings['testsize'])
@@ -79,8 +69,9 @@ if __name__ == '__main__':
     model = models.build(rng, settings)
 
     start = time.time()
-    dataset = get_dataset(settings)
-    labels = get_labels(dataset, settings['labels'])
+    pre_dataset = get_dataset(settings)
+    labels = activetm.dataset.get_labels(pre_dataset, settings['labels'])
+    dataset = activetm.dataset.LabeledDataset(pre_dataset, labels)
     end = time.time()
     import_time = datetime.timedelta(seconds=end-start)
 
@@ -90,12 +81,12 @@ if __name__ == '__main__':
     test_labels = []
     test_words = []
     for t in test_doc_ids:
-        test_labels.append(labels[t])
+        test_labels.append(dataset.labels[dataset.titles[t]])
         test_words.append(dataset.doc_tokens(t))
     test_labels_mean = np.mean(test_labels)
     known_labels = []
     for t in labeled_doc_ids:
-        known_labels.append(labels[t])
+        known_labels.append(dataset.labels[dataset.titles[t]])
 
     SELECT_METHOD = select.factory[settings['select']]
     END_LABELED = int(settings['endlabeled'])
@@ -117,7 +108,7 @@ if __name__ == '__main__':
         chosen = SELECT_METHOD(dataset, labeled_doc_ids, candidates, model, rng,
                 LABEL_INCREMENT)
         for c in chosen:
-            known_labels.append(labels[c])
+            known_labels.append(dataset.labels[dataset.titles[c]])
             labeled_doc_ids.append(c)
             unlabeled_doc_ids.remove(c)
         model.train(dataset, labeled_doc_ids, known_labels, True)
