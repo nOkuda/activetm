@@ -1,0 +1,35 @@
+# corpus options
+corpus  /net/roi/okuda/state_of_the_union/quarter/*
+labels  /net/roi/okuda/state_of_the_union/ankura_quarter_timestamps.data
+
+# filter options
+stopwords   /net/roi/okuda/data/stopwords.txt
+rare    5
+common  1500
+smalldoc    5
+pregenerate YES
+
+# experiment options
+group   slda_random
+seed    531
+select  random
+testsize    200
+startlabeled    50
+endlabeled  100
+increment   10
+candsize    500
+
+# model options
+model   slda
+cseed 531
+numtopics   20
+alpha   0.1
+beta    0.01
+var 0.01
+numtrain    15
+numsamplestrain 5
+trainburn   50
+trainlag    50
+numsamplespredict   5
+predictburn 10
+predictlag  5

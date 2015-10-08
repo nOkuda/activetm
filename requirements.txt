@@ -1,3 +1,2 @@
--e git+https://github.com/jlund2/ankura#egg=ankura
-ctypes
+-e git+https://github.com/jlund3/ankura#egg=ankura
 numpy
