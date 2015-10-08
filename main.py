@@ -6,7 +6,7 @@ import subprocess
 import sys
 import threading
 
-import plot.plot
+import activetm.plot as plot
 
 '''
 The output from an experiment should take the following form:
@@ -121,9 +121,9 @@ def make_plots(outputdir):
         if os.path.isdir(os.path.join(outputdir, item)):
             dirs.append(item)
     dirs.sort()
-    colors = plot.plot.get_separate_colors(len(dirs))
-    count_plot = plot.plot.Plotter(colors)
-    time_plot = plot.plot.Plotter(colors)
+    colors = plot.get_separate_colors(len(dirs))
+    count_plot = plot.Plotter(colors)
+    time_plot = plot.Plotter(colors)
     for d in dirs:
         data = np.array(get_data(os.path.join(outputdir, d)))
         # for the first document, read off first dimension (the labeled set

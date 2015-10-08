@@ -10,9 +10,9 @@ import random
 import ankura
 from ankura import tokenize
 
-import active.evaluate
-import active.select
-import models.sampler.slda
+import activetm.active.evaluate as evaluate
+import activetm.active.select as select
+import activetm.models.sampler.slda as slda
 
 SOTU_GLOB = '/net/roi/okuda/state_of_the_union/quarter/*'
 ENGL_STOP = '/net/roi/okuda/data/stopwords.txt'
@@ -45,9 +45,9 @@ LABEL_INCREMENT = 10
 
 TEST_SIZE = 200
 
-# SELECT_METHOD = active.select.factory['jsd_toptopic_centroid']
-SELECT_METHOD = active.select.factory['random']
-# SELECT_METHOD = active.select.factory['jsd_toptopic_balanced']
+# SELECT_METHOD = select.factory['jsd_toptopic_centroid']
+SELECT_METHOD = select.factory['random']
+# SELECT_METHOD = select.factory['jsd_toptopic_balanced']
 
 def demo(C_SEED):
     """Runs a demo of active learning simulation with sLDA via sampling"""
@@ -91,10 +91,10 @@ def demo(C_SEED):
 
     # learning loop
     model.train(dataset, labeled_doc_ids, known_labels)
-    metric = active.evaluate.pR2(model, test_words, test_labels, test_labels_mean)
+    metric = evaluate.pR2(model, test_words, test_labels, test_labels_mean)
     print len(labeled_doc_ids), metric, datetime.timedelta(seconds=time.time()-start)
     while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
-        candidates = active.select.reservoir(list(unlabeled_doc_ids),
+        candidates = select.reservoir(list(unlabeled_doc_ids),
                 rng, CAND_SIZE)
         chosen = SELECT_METHOD(dataset, labeled_doc_ids, candidates, model, rng, LABEL_INCREMENT)
         for c in chosen:
@@ -102,7 +102,7 @@ def demo(C_SEED):
             labeled_doc_ids.append(c)
             unlabeled_doc_ids.remove(c)
         model.train(dataset, labeled_doc_ids, known_labels, True)
-        metric = active.evaluate.pR2(model, test_words, test_labels, test_labels_mean)
+        metric = evaluate.pR2(model, test_words, test_labels, test_labels_mean)
         print len(labeled_doc_ids), metric, datetime.timedelta(seconds=time.time()-start)
     model.cleanup()
     end = time.time()

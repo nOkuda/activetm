@@ -10,9 +10,9 @@ import time
 import ankura
 from ankura import tokenize
 
-import active.evaluate
-import active.select
-import models.models
+import activetm.active.evaluate as evaluate
+import activetm.active.select as select
+import activetm.models as models
 
 def parse_settings(filename):
     settings = {}
@@ -76,7 +76,7 @@ if __name__ == '__main__':
             pass
 
     rng = random.Random(int(settings['seed']))
-    model = models.models.build(rng, settings)
+    model = models.build(rng, settings)
 
     start = time.time()
     dataset = get_dataset(settings)
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     for t in labeled_doc_ids:
         known_labels.append(labels[t])
 
-    SELECT_METHOD = active.select.factory[settings['select']]
+    SELECT_METHOD = select.factory[settings['select']]
     END_LABELED = int(settings['endlabeled'])
     LABEL_INCREMENT = int(settings['increment'])
     CAND_SIZE = int(settings['candsize'])
@@ -107,12 +107,12 @@ if __name__ == '__main__':
 
     start = time.time()
     model.train(dataset, labeled_doc_ids, known_labels)
-    metric = active.evaluate.pR2(model, test_words, test_labels,
+    metric = evaluate.pR2(model, test_words, test_labels,
             test_labels_mean)
     results.append([len(labeled_doc_ids),
             datetime.timedelta(seconds=time.time()-start).total_seconds(), metric])
     while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
-        candidates = active.select.reservoir(list(unlabeled_doc_ids), rng,
+        candidates = select.reservoir(list(unlabeled_doc_ids), rng,
                 CAND_SIZE)
         chosen = SELECT_METHOD(dataset, labeled_doc_ids, candidates, model, rng,
                 LABEL_INCREMENT)
@@ -121,7 +121,7 @@ if __name__ == '__main__':
             labeled_doc_ids.append(c)
             unlabeled_doc_ids.remove(c)
         model.train(dataset, labeled_doc_ids, known_labels, True)
-        metric = active.evaluate.pR2(model, test_words, test_labels,
+        metric = evaluate.pR2(model, test_words, test_labels,
                 test_labels_mean)
         results.append([len(labeled_doc_ids),
                 datetime.timedelta(seconds=time.time()-start).total_seconds(), metric])

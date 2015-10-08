@@ -1,13 +1,13 @@
 from __future__ import division
-import sampler.slda
+import tech.sampler.slda
 
 factory = {
-    'slda': sampler.slda.SamplingSLDA
+    'slda': tech.sampler.slda.SamplingSLDA
 }
 
 def build(rng, settings):
     if settings['model'] == 'slda':
-        sampler.slda.set_seed(int(settings['cseed']))
+        tech.sampler.slda.set_seed(int(settings['cseed']))
         NUM_TOPICS = int(settings['numtopics'])
         ALPHA = float(settings['alpha'])
         BETA = float(settings['beta'])
