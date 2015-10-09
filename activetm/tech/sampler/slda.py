@@ -9,6 +9,7 @@ import sys
 import sampling as sampling
 import wordindex as wordindex
 import ctypesutils as ctypesutils
+from .. import abstract
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 so_path = os.path.join(script_dir, 'csampling.so')
@@ -67,42 +68,7 @@ freeDoubleMatrix.argtypes = (ctypes.POINTER(ctypes.POINTER(ctypes.c_double)),
 def set_seed(seed):
     sampling_setSeed(ctypes.c_ulonglong(seed))
 
-def build_model(modelparams, rng):
-    modeltype = modelparams['modeltype']
-    if modeltype == 'MockModel':
-        return MockModel(rng)
-    elif modeltype == 'SamplingSLDA':
-        return SamplingSLDA(rng,
-                int(modelparams['model_numtopics']),
-                float(modelparams['model_initalpha']),
-                float(modelparams['model_inithyperbeta']),
-                float(modelparams['model_initvar']),
-                int(modelparams['model_numtrainchains']),
-                int(modelparams['model_numsamplespertrainchain']),
-                int(modelparams['model_trainburn']),
-                int(modelparams['model_trainlag']),
-                int(modelparams['model_numsamplesperpredictchain']),
-                int(modelparams['model_predictburn']),
-                int(modelparams['model_predictlag']))
-    raise NotImplementedError('Unknown model type: \
-            {}'.format('modeltype'))
-
-class AbstractModel:
-    def train(self, trainingset, knownlabels):
-        raise NotImplementedError()
-    def predict(self, doc):
-        raise NotImplementedError()
-
-class MockModel(AbstractModel):
-    '''MockModel requires no parameters to be given'''
-    def __init__(self, rng):
-        self.rng = rng
-    def train(self, dataset, knownlabels):
-        pass
-    def predict(self, doc):
-        return self.rng.random()
-
-class SamplingSLDA(AbstractModel):
+class SamplingSLDA(abstract.AbstractModel):
     '''SamplingSLDA requires the following parameters:
         * numtopics
             the number of topics to look for
@@ -271,3 +237,4 @@ class SamplingSLDA(AbstractModel):
                 self.saved_statesc[chain_num][state_num].contents.topicWordCounts[topic],
                 self.wordindex.size()))
         return result / np.sum(result)
+

@@ -12,7 +12,7 @@ from ankura import tokenize
 
 import activetm.active.evaluate as evaluate
 import activetm.active.select as select
-import activetm.dataset
+import activetm.labeled
 import activetm.models as models
 
 def parse_settings(filename):
@@ -70,8 +70,8 @@ if __name__ == '__main__':
 
     start = time.time()
     pre_dataset = get_dataset(settings)
-    labels = activetm.dataset.get_labels(pre_dataset, settings['labels'])
-    dataset = activetm.dataset.LabeledDataset(pre_dataset, labels)
+    labels = activetm.labeled.get_labels(pre_dataset, settings['labels'])
+    dataset = activetm.labeled.LabeledDataset(pre_dataset, labels)
     end = time.time()
     import_time = datetime.timedelta(seconds=end-start)
 
