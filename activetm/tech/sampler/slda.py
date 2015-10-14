@@ -1,6 +1,7 @@
 from __future__ import division
 import copy
 import ctypes
+import heapq
 import numpy as np
 import os
 import random
@@ -237,4 +238,31 @@ class SamplingSLDA(abstract.AbstractModel):
                 self.saved_statesc[chain_num][state_num].contents.topicWordCounts[topic],
                 self.wordindex.size()))
         return result / np.sum(result)
+
+    def get_top_topics(self, dataset, doc_ids):
+        # TODO optimize (make only one C call)
+        pqs = []
+        for i in range(len(doc_ids)):
+            pqs.append([])
+        for i in range(self.numtrainchains):
+            for j in range(self.numsamplespertrainchain):
+                expectedTopicCounts = self.get_expected_topic_counts(dataset,
+                        doc_ids, i, j)
+                for d, expected in enumerate(expectedTopicCounts):
+                    highest = 0.0
+                    highestTopic = -1
+                    for (k, val) in enumerate(expected):
+                        if val > highest:
+                            highest = val
+                            highestTopic = k
+                    if highestTopic == -1:
+                        highestTopic = rng.randint(0, self.numtopics-1)
+                        highest = rng.random()
+                    # we want the highest value out first, but heapq pops smallest first
+                    heapq.heappush(pqs[d], (-highest, highestTopic, i, j))
+        result = np.zeros((len(doc_ids), self.wordindex.size()))
+        for i, pq in enumerate(pqs):
+            (_, highestTopic, i, j) = heapq.heappop(pq)
+            result[i, :] = self.get_topic_distribution(highestTopic, i, j)
+        return result
 

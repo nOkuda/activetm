@@ -2,6 +2,7 @@ from __future__ import division
 
 import ankura
 import ctypes
+import heapq
 import numpy as np
 
 import abstract
@@ -33,6 +34,7 @@ class SupervisedAnchor(abstract.AbstractModel):
 
         # other instance variables initialized in train:
         #   self.corpus_to_train_vocab
+        #   self.vocab_size
         #   self.topicses
         #   self.weightses
         #   self.samplers
@@ -48,6 +50,10 @@ class SupervisedAnchor(abstract.AbstractModel):
         self.corpus_to_train_vocab = [-1] * len(dataset.vocab)
         counter = 0
         for i in range(len(dataset.vocab)):
+            # note that this uses the same condition as used in
+            # ankura.pipeline.filter_rarewords to count only the words that
+            # survive after dropping vocabulary words zeroed out as a result of
+            # training set selection
             if tmp.docwords[i,:].nnz >= 1:
                 self.corpus_to_train_vocab[i] = counter
                 counter += 1
@@ -56,6 +62,7 @@ class SupervisedAnchor(abstract.AbstractModel):
         for d, r in zip(trainingdoc_ids, knownresp):
             labels[dataset.titles[d]] = r
         trainingset = labeled.LabeledDataset(filtered, labels)
+        self.vocab_size = trainingset.vocab_size
         self.topicses = []
         self.weightses = []
         self.samplers = []
@@ -186,4 +193,29 @@ class SupervisedAnchor(abstract.AbstractModel):
 
     def get_topic_distribution(self, topic, chain_num, state_num):
         return np.array(self.topicses[chain_num][:, topic])
+
+    def get_top_topics(self, dataset, doc_ids):
+        pqs = []
+        for i in range(len(doc_ids)):
+            pqs.append([])
+        for i in range(self.numtrain):
+            expectedTopicCounts = []
+            for j, d in enumerate(doc_ids):
+                docws = self._convert_vocab_space(dataset.doc_tokens(d))
+                topicCounts = self._predict_topics(i, docws)
+                highest = 0.0
+                highestTopic = -1
+                for k, val in enumerate(topicCounts):
+                    if val > highest:
+                        highest = val
+                        highestTopic = k
+                if highestTopic == -1:
+                    highestTopic = self.rng.randint(0, self.numtopics-1)
+                    highest = rng.random()
+                heapq.heappush(pqs[j], (-highest, highestTopic, i))
+        result = np.zeros((len(doc_ids), self.vocab_size))
+        for i, pq in enumerate(pqs):
+            (_, highestTopic, i) = heapq.heappop(pq)
+            result[i,:] = self.get_topic_distribution(highestTopic, i, 0)
+        return result
 

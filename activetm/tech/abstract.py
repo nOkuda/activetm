@@ -9,4 +9,5 @@ class AbstractModel:
         raise NotImplementedError()
     def get_topic_distribution(self, topic, chain_num, state_num):
         raise NotImplementedError()
-
+    def get_top_topics(self, dataset, doc_ids):
+        raise NotImplementedError()
