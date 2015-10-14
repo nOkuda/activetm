@@ -1,12 +1,15 @@
 from __future__ import division
 import argparse
 import numpy as np
+import datetime
+from email.mime.text import MIMEText
 import os
 import subprocess
 import sys
 import threading
 
 import activetm.plot as plot
+import activetm.utils as utils
 
 '''
 The output from an experiment should take the following form:
@@ -42,15 +45,6 @@ class JobThread(threading.Thread):
                             self.outputdir + ' ' +\
                             self.label + '; exit 0'])
 
-def count_settings(filename):
-    count = 0
-    with open(filename) as ifh:
-        for line in ifh:
-            line = line.strip()
-            if line:
-                count += 1
-    return count
-
 def generate_settings(filename):
     with open(filename) as ifh:
         for line in ifh:
@@ -71,6 +65,14 @@ def check_counts(hosts, settingscount):
     if len(hosts) != settingscount:
         print 'Node count and settings count do not match!'
         sys.exit(1)
+
+def get_groups(config):
+    result = set()
+    settings = generate_settings(config)
+    for s in settings:
+        d = utils.parse_settings(s)
+        result.add(d['group'])
+    return sorted(list(result))
 
 def run_jobs(hosts, settings, working_dir, outputdir):
     threads = []
@@ -115,13 +117,9 @@ def get_stats(mat):
     mat_errs_plus = np.percentile(mat, 75, axis=0) - mat_means
     return mat_medians, mat_means, mat_errs_plus, mat_errs_minus
 
-def make_plots(outputdir):
-    dirs =[]
-    for item in os.listdir(outputdir):
-        if os.path.isdir(os.path.join(outputdir, item)):
-            dirs.append(item)
-    dirs.sort()
+def make_plots(outputdir, dirs):
     colors = plot.get_separate_colors(len(dirs))
+    dirs.sort()
     count_plot = plot.Plotter(colors)
     time_plot = plot.Plotter(colors)
     for d in dirs:
@@ -149,6 +147,18 @@ def make_plots(outputdir):
     time_plot.set_ylabel('pR$^2$')
     time_plot.savefig('times.pdf')
 
+def send_notification(email, outdir, run_time):
+    msg = MIMEText('Run time: '+str(run_time))
+    msg['Subject'] = 'Experiment Finished for '+outdir
+    msg['From'] = email
+    msg['To'] = email
+
+    p = os.popen('/usr/sbin/sendmail -t -i', 'w')
+    p.write(msg.as_string())
+    status = p.close()
+    if status:
+        print "sendmail exit status", status
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Launcher for ActiveTM '
             'experiments')
@@ -162,11 +172,23 @@ if __name__ == '__main__':
             as discussed in README.md in the root ActiveTM directory''')
     parser.add_argument('outputdir', help='directory for output (should be a '
             'network path)')
+    parser.add_argument('email', help='email address to send to when job '
+            'completes', nargs='?')
     args = parser.parse_args()
 
+    begin_time = datetime.datetime.now()
     hosts = get_hosts(args.hosts)
-    check_counts(hosts, count_settings(args.config))
+    check_counts(hosts, utils.count_settings(args.config))
+    if not os.path.exists(args.outputdir):
+        print 'Cannot write output to: ', args.outputdir
+        sys.exit(-1)
+    groups = get_groups(args.config)
     run_jobs(hosts, generate_settings(args.config), args.working_dir,
             args.outputdir)
-    make_plots(args.outputdir)
+    make_plots(args.outputdir, groups)
+    run_time = datetime.datetime.now() - begin_time
+    with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
+        ofh.write(str(run_time))
+    if args.email:
+        send_notification(args.email, args.outputdir, run_time)
 

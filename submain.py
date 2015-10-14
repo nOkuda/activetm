@@ -14,16 +14,7 @@ import activetm.active.evaluate as evaluate
 import activetm.active.select as select
 import activetm.labeled
 import activetm.models as models
-
-def parse_settings(filename):
-    settings = {}
-    with open(filename) as ifh:
-        for line in ifh:
-            line = line.strip()
-            if line and not line.startswith('#'):
-                k, v = line.split()
-                settings[k] = v
-    return settings
+import activetm.utils as utils
 
 def get_dataset(settings):
     PIPELINE = [(ankura.read_glob, settings['corpus'], tokenize.simple),
@@ -57,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('label', help='identifying label')
     args = parser.parse_args()
 
-    settings = parse_settings(args.settings)
+    settings = utils.parse_settings(args.settings)
     trueoutputdir = os.path.join(args.outputdir, settings['group'])
     if not os.path.exists(trueoutputdir):
         try:
