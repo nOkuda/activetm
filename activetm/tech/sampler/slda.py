@@ -47,11 +47,13 @@ sampling_sLDA.restype = ctypes.POINTER(ctypes.POINTER(SamplerState))
 sampling_setSeed = sampling_dll.setSeed
 sampling_setSeed.argtypes = (ctypes.c_ulonglong,)
 getExpectedTopicCounts = sampling_dll.getExpectedTopicCounts
-getExpectedTopicCounts.argtypes = (ctypes.POINTER(SamplerState), ctypes.c_int,
-        ctypes.POINTER(ctypes.c_int),
+getExpectedTopicCounts.argtypes = (ctypes.c_int, ctypes.c_int,
+        ctypes.POINTER(ctypes.POINTER(ctypes.POINTER(SamplerState))),
+        ctypes.c_int, ctypes.POINTER(ctypes.c_int),
         ctypes.POINTER(ctypes.POINTER(ctypes.c_int)), ctypes.c_int,
         ctypes.POINTER(ctypes.c_int))
-getExpectedTopicCounts.restype = ctypes.POINTER(ctypes.POINTER(ctypes.c_double))
+getExpectedTopicCounts.restype = ctypes.POINTER(ctypes.POINTER(ctypes.POINTER(ctypes.POINTER(
+        ctypes.c_double))))
 freeSavedStates = sampling_dll.freeSavedStates
 freeSavedStates.argtypes = (ctypes.POINTER(ctypes.POINTER(SamplerState)),
         ctypes.c_int)
@@ -65,6 +67,9 @@ freeDoubleArray.argtypes = (ctypes.POINTER(ctypes.c_double),)
 freeDoubleMatrix = sampling_dll.freeDoubleMatrix
 freeDoubleMatrix.argtypes = (ctypes.POINTER(ctypes.POINTER(ctypes.c_double)),
         ctypes.c_int)
+freeDoubleTensor = sampling_dll.freeDoubleTensor
+freeDoubleTensor.argtypes = (ctypes.POINTER(ctypes.POINTER(ctypes.POINTER(ctypes.POINTER(
+        ctypes.c_double)))), ctypes.c_int, ctypes.c_int, ctypes.c_int)
 
 def set_seed(seed):
     sampling_setSeed(ctypes.c_ulonglong(seed))
@@ -117,7 +122,8 @@ class SamplingSLDA(abstract.AbstractModel):
         self.numsamplesperpredictchain = numsamplesperpredictchain
         self.predictburn = predictburn
         self.predictlag = predictlag
-        self.saved_statesc = [0] * self.numtrainchains
+        self.saved_statesc = (ctypes.POINTER(ctypes.POINTER(
+                SamplerState)) * self.numtrainchains)()
 
         predictschedule = [self.predictlag] * self.numsamplesperpredictchain
         predictschedule[0] = self.predictburn
@@ -218,40 +224,45 @@ class SamplingSLDA(abstract.AbstractModel):
             freeSavedStates(self.saved_statesc[i], count)
     
     # this method was too slow when done with individual documents
-    def get_expected_topic_counts(self, dataset, doc_ids, chain_num, state_num):
+    def _get_expected_topic_counts(self, dataset, doc_ids):
         knownwords = (ctypes.POINTER(ctypes.c_int) * len(doc_ids))()
         docSizes = []
         for i, c in enumerate(doc_ids):
             curDoc = self.wordindex.vectorize_without_adding(dataset.doc_tokens(c))
             docSizes.append(len(curDoc))
             knownwords[i] = ctypesutils.convertFromIntList(curDoc)
-        expectedTopicCounts = getExpectedTopicCounts(self.saved_statesc[chain_num][state_num],
+        expectedTopicCounts = getExpectedTopicCounts(self.numtrainchains,
+                self.numsamplespertrainchain, self.saved_statesc,
                 ctypes.c_int(len(doc_ids)), ctypesutils.convertFromIntList(docSizes),
                 knownwords, self.numsamplesperpredictchain, self.predictschedarr)
-        result = ctypesutils.convertToListOfLists(expectedTopicCounts,
-                [self.numtopics]*len(doc_ids))
-        freeDoubleMatrix(expectedTopicCounts, ctypes.c_int(len(doc_ids)))
+        result = []
+        for d in range(len(doc_ids)):
+            result.append([])
+            for i in range(self.numtrainchains):
+                result[d].append([])
+                for j in range(self.numsamplespertrainchain):
+                    result[d][i].append(ctypesutils.convertToList(
+                            expectedTopicCounts[d][i][j], self.numtopics))
+        freeDoubleTensor(expectedTopicCounts, ctypes.c_int(len(doc_ids)),
+                ctypes.c_int(self.numtrainchains), ctypes.c_int(self.numsamplespertrainchain))
         return result
 
-    def get_topic_distribution(self, topic, chain_num, state_num):
+    def _get_topic_distribution(self, topic, chain_num, state_num):
         result = np.array(ctypesutils.convertToList(
                 self.saved_statesc[chain_num][state_num].contents.topicWordCounts[topic],
                 self.wordindex.size()))
         return result / np.sum(result)
 
     def get_top_topics(self, dataset, doc_ids):
-        # TODO optimize (make only one C call)
-        pqs = []
-        for i in range(len(doc_ids)):
-            pqs.append([])
-        for i in range(self.numtrainchains):
-            for j in range(self.numsamplespertrainchain):
-                expectedTopicCounts = self.get_expected_topic_counts(dataset,
-                        doc_ids, i, j)
-                for d, expected in enumerate(expectedTopicCounts):
+        result = np.zeros((len(doc_ids), self.wordindex.size()))
+        expectedTopicCounts = self._get_expected_topic_counts(dataset, doc_ids)
+        for d in range(len(doc_ids)):
+            pq = []
+            for i in range(self.numtrainchains):
+                for j in range(self.numsamplespertrainchain):
                     highest = 0.0
                     highestTopic = -1
-                    for (k, val) in enumerate(expected):
+                    for k, val in enumerate(expectedTopicCounts[d][i][j]):
                         if val > highest:
                             highest = val
                             highestTopic = k
@@ -259,10 +270,8 @@ class SamplingSLDA(abstract.AbstractModel):
                         highestTopic = rng.randint(0, self.numtopics-1)
                         highest = rng.random()
                     # we want the highest value out first, but heapq pops smallest first
-                    heapq.heappush(pqs[d], (-highest, highestTopic, i, j))
-        result = np.zeros((len(doc_ids), self.wordindex.size()))
-        for i, pq in enumerate(pqs):
+                    heapq.heappush(pq, (-highest, highestTopic, i, j))
             (_, highestTopic, i, j) = heapq.heappop(pq)
-            result[i, :] = self.get_topic_distribution(highestTopic, i, j)
+            result[d,:] = self._get_topic_distribution(highestTopic, i, j)
         return result
 

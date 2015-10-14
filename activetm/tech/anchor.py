@@ -66,7 +66,7 @@ class SupervisedAnchor(abstract.AbstractModel):
         self.topicses = []
         self.weightses = []
         self.samplers = []
-        print 'Training set size:', trainingset.M.sum()
+        # print 'Training set size:', trainingset.M.sum()
         for _ in range(self.numtrain):
             anchors = ankura.anchor.gramschmidt_anchors(trainingset,
                     self.numtopics, 0.1 * len(trainingset.titles),

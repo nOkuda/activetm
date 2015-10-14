@@ -481,34 +481,42 @@ double* predict(int savedCount, SamplerState** savedStates, int docSize,
     return result;
 }
 
-double** getExpectedTopicCounts(SamplerState* samplerState, int docCount, int* docSizes,
+double**** getExpectedTopicCounts(int numTrain, int numStates,
+        SamplerState*** samplerStates, int docCount, int* docSizes,
         int** docWords, int numSamples, int* schedule) {
-    const int numTopics = samplerState->numTopics;
-    const double vbeta = samplerState->vocabSize * samplerState->hyperbeta;
-    const double default_value = 1.0 / numTopics;
-    double** result = malloc(docCount * sizeof(double*));
+    double**** result = malloc(docCount * sizeof(double***));
     for (int d = 0; d < docCount; d++) {
-        result[d] = malloc(numTopics * sizeof(double));
-        if (docSizes[d] <= 0) {
-            for (int i = 0; i < numTopics; i++) {
-                result[d][i] = default_value;
-            }
-            continue;
-        }
+        result[d] = malloc(numTrain * sizeof(double**));
         CorpusData* doc = buildPredictCorpus(docSizes[d], docWords[d]);
-        SamplerState* sampler = buildPredictSampler(samplerState, doc);
-        memset(result[d], 0, numTopics * sizeof(double));
-        for (int i = 0; i < numSamples; i++) {
-            gibbs_loop(sampler, schedule[i]);
-            for (int j = 0; j < numTopics; j++) {
-                result[d][j] += sampler->docTopicCounts[0][j];
+        for (int i = 0; i < numTrain; i++) {
+            result[d][i] = malloc(numStates * sizeof(double*));
+            for (int j = 0; j < numStates; j++) {
+                SamplerState* samplerState = samplerStates[i][j];
+                const int numTopics = samplerState->numTopics;
+                const double vbeta = samplerState->vocabSize * samplerState->hyperbeta;
+                const double default_value = 1.0 / numTopics;
+                result[d][i][j] = malloc(numTopics * sizeof(double));
+                if (docSizes[d] <= 0) {
+                    for (int k = 0; k < numTopics; k++) {
+                        result[d][i][j][k] = default_value;
+                    }
+                    continue;
+                }
+                SamplerState* sampler = buildPredictSampler(samplerState, doc);
+                memset(result[d][i][j], 0, numTopics * sizeof(double));
+                for (int k = 0; k < numSamples; k++) {
+                    gibbs_loop(sampler, schedule[k]);
+                    for (int l = 0; l < numTopics; l++) {
+                        result[d][i][j][l] += sampler->docTopicCounts[0][l];
+                    }
+                }
+                const double coeff = 1.0 / (docSizes[d] * numSamples);
+                for (int k = 0; k < numTopics; k++) {
+                    result[d][i][j][k] *= coeff;
+                }
+                freeSamplerState(sampler);
             }
         }
-        const double coeff = 1.0 / (docSizes[d] * numSamples);
-        for (int i = 0; i < numTopics; i++) {
-            result[d][i] *= coeff;
-        }
-        freeSamplerState(sampler);
         freeCorpusData(doc);
     }
     return result;
@@ -523,4 +531,14 @@ void freeDoubleMatrix(double** m, int size) {
         free(m[i]);
     }
     free(m);
+}
+
+void freeDoubleTensor(double**** t, int dim1, int dim2, int dim3) {
+    for (int i = 0; i < dim1; i++) {
+        for (int j = 0; j < dim2; j++) {
+            freeDoubleMatrix(t[i][j], dim3);
+        }
+        free(t[i]);
+    }
+    free(t);
 }
