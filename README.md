@@ -29,6 +29,10 @@ pip install -r requirements.txt
 
 in the `ActiveTM` directory.
 
+Note that in order for the code to work, it is necessary to tweak `ankura`
+slightly.  Change the return value of `ankura.topic.predict_topics` from `z` to
+`counts`.
+
 ## Settings
 
 Running the code requires a settings file to define the arguments and parameters

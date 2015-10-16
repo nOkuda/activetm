@@ -17,11 +17,16 @@ import activetm.models as models
 import activetm.utils as utils
 
 def get_dataset(settings):
-    PIPELINE = [(ankura.read_glob, settings['corpus'], tokenize.simple),
+    PIPELINE = []
+    if settings['corpus'].find('*') >= 0:
+        PIPELINE.append((ankura.read_glob, settings['corpus'], tokenize.simple))
+    else:
+        PIPELINE.append((ankura.read_file, settings['corpus'], tokenize.simple))
+    PIPELINE.extend([
             (ankura.filter_stopwords, settings['stopwords']),
             (ankura.filter_rarewords, int(settings['rare'])),
             (ankura.filter_commonwords, int(settings['common'])),
-            (ankura.filter_smalldocs, int(settings['smalldoc']))]
+            (ankura.filter_smalldocs, int(settings['smalldoc']))])
     if settings['pregenerate'] == 'YES':
         PIPELINE.append((ankura.pregenerate_doc_tokens))
     return ankura.run_pipeline(PIPELINE)

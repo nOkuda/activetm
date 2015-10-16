@@ -4,6 +4,7 @@ import ankura
 import ctypes
 import heapq
 import numpy as np
+from sklearn.linear_model import Ridge
 
 import abstract
 import sampler.ctypesutils as ctypesutils
@@ -65,7 +66,7 @@ class SupervisedAnchor(abstract.AbstractModel):
         self.vocab_size = trainingset.vocab_size
         self.topicses = []
         self.weightses = []
-        self.samplers = []
+        self.predictors = []
         # print 'Training set size:', trainingset.M.sum()
         for _ in range(self.numtrain):
             anchors = ankura.anchor.gramschmidt_anchors(trainingset,
@@ -79,11 +80,16 @@ class SupervisedAnchor(abstract.AbstractModel):
                 X[d,:] = ankura.topic.predict_topics(topics,
                         trainingset.doc_tokens(d), rng=self.rng) / \
                         len(trainingset.doc_tokens(d))
+            ridge = Ridge()
+            ridge.fit(X, np.array(knownresp))
+            self.predictors.append(ridge)
+            '''
             # jitter
             for d in range(X.shape[1]):
-                X[d,d] += (self.rng.random()*1e-20) - 5e-21
+                X[d,d] += (self.rng.random()*1e-50) - 5e-51
             weights, residuals, rank, s = np.linalg.lstsq(X, knownresp)
             self.weightses.append(weights)
+            '''
             '''
             pretopicwordcounts = topics.T
             vocabcounts = trainingset.M.sum(axis=1).A1
@@ -135,7 +141,8 @@ class SupervisedAnchor(abstract.AbstractModel):
             return self.rng.random()
         for i in range(self.numtrain):
             X = self._predict_topics(i, docws)
-            guess = np.dot(self.weightses[i], X)
+            guess = self.predictors[i].predict(X)
+            # guess = np.dot(self.weightses[i], X)
             resultsList.append(guess)
         return np.mean(resultsList)
 
@@ -211,7 +218,7 @@ class SupervisedAnchor(abstract.AbstractModel):
                         highestTopic = k
                 if highestTopic == -1:
                     highestTopic = self.rng.randint(0, self.numtopics-1)
-                    highest = rng.random()
+                    highest = self.rng.random()
                 heapq.heappush(pqs[j], (-highest, highestTopic, i))
         result = np.zeros((len(doc_ids), self.vocab_size))
         for i, pq in enumerate(pqs):
