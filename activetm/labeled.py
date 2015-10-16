@@ -4,13 +4,34 @@ import numpy as np
 
 import ankura.pipeline
 
-def get_labels(dataset, filename):
-    pre_labels = {}
+def get_labels(filename):
+    '''Since labels are assumed to be normalized from 0 to 1 in computing the
+    augmented Q matrix, this function will scale all labels to fit this range
+    '''
+    smallest = float('inf')
+    largest = float('-inf')
+    labels = {}
     with open(filename) as ifh:
         for line in ifh:
             data = line.strip().split()
-            pre_labels[data[0]] = float(data[1])
-    return pre_labels
+            val = float(data[1])
+            labels[data[0]] = val
+            if val < smallest:
+                smallest = val
+            if val > largest:
+                largest = val
+    difference = largest - smallest
+    if difference < 1e-50:
+        # all of the label values were essentially the same, so just assign
+        # everything to have the same label
+        for d in labels:
+            labels[d] = 0.5
+    elif abs(difference - 1) > 1e-50:
+        for d in labels:
+            labels[d] = (labels[d] - smallest) / difference
+    # otherwise, the labels were already spanning the range 0 to 1, so no need
+    # to change anything
+    return labels
 
 class LabeledDataset(ankura.pipeline.Dataset):
     '''Implementation of labeled dataset

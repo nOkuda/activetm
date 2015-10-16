@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     start = time.time()
     pre_dataset = get_dataset(settings)
-    labels = activetm.labeled.get_labels(pre_dataset, settings['labels'])
+    labels = activetm.labeled.get_labels(settings['labels'])
     dataset = activetm.labeled.LabeledDataset(pre_dataset, labels)
     end = time.time()
     import_time = datetime.timedelta(seconds=end-start)

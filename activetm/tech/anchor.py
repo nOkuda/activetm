@@ -147,6 +147,8 @@ class SupervisedAnchor(abstract.AbstractModel):
         return np.mean(resultsList)
 
     def _predict_topics(self, pos, docws):
+        if len(docws) == 0:
+            return np.array([1.0 / self.numtopics] * self.numtopics)
         result = np.zeros(self.numtopics)
         for _ in range(self.numsamplesperpredictchain):
             result += ankura.topic.predict_topics(self.topicses[pos], docws,
