@@ -1,6 +1,8 @@
 # corpus options
 corpus  /net/roi/okuda/state_of_the_union/quarter/*
 labels  /net/roi/okuda/state_of_the_union/ankura_quarter_timestamps.data
+# corpus  /net/roi/okuda/data/amazon/amazon.txt
+# labels  /net/roi/okuda/data/amazon/amazon.response
 
 # filter options
 stopwords   /net/roi/okuda/data/stopwords.txt
@@ -31,5 +33,5 @@ numsamplestrain 5
 trainburn   50
 trainlag    50
 numsamplespredict   5
-predictburn 10
+predictburn 100
 predictlag  5

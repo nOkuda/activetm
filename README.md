@@ -20,6 +20,7 @@ To run the Python code, you will need to install the following modules:
 
 * [`ankura`](https://github.com/jlund3/ankura)
 * `numpy`
+* `sklearn`
 
 It is possible to install these modules by running
 

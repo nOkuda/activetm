@@ -317,14 +317,27 @@ void trainPredictionWeights(SamplerState* samplerState) {
         // not enough info to do regression
         return;
     }
+
+    /*
+     * Setting up problem with regularization.  See
+     * https://inst.eecs.berkeley.edu/~ee127a/book/login/l_ols_rls_def.html.
+     * Essentially, we can set up Tikhonov regularization as a normal least
+     * squares problem by stacking up A with regularization terms and b with
+     * zeros.
+     */
     nrhs = 1;
-    lda = m;
-    ldb = m;
+    lda = m + n;
+    ldb = m + n;
 
-    double ys[m];
+    double ys[lda];
     memcpy(ys, samplerState->corpusData->responseValues, m * sizeof(double));
+    for (int i = m; i < lda; i++) {
+        // I might have been able to get away with a memset, but decided to go
+        // with explicit setting just in case.
+        ys[i] = 0;
+    }
 
-    double** zBars = malloc(m * sizeof(double*));
+    double** zBars = malloc(lda * sizeof(double*));
     for (int i = 0; i < m; i++) {
         zBars[i] = malloc(n * sizeof(double));
         int sum = 0;
@@ -335,18 +348,23 @@ void trainPredictionWeights(SamplerState* samplerState) {
             zBars[i][j] = ((double) samplerState->docTopicCounts[i][j]) / sum;
         }
     }
-    double zBarsCopy[m*n];
-    for (int j = 0; j < n; j++) {
-        for (int i = 0; i < m; i++) {
-            zBarsCopy[i + (j * m)] = zBars[i][j];
-            if (i == j) {
-                // jitter to avoid singular matrices
-                zBarsCopy[i + (j * m)] += (nextDouble() * 2e-10) - 1e-10;
+    for (int i = m; i < lda; i++) {
+        zBars[i] = malloc(n * sizeof(double));
+        for (int j = 0; j < n; j++) {
+            if (j == (i-m)) {
+                zBars[i][j] = 1;  // technically, \sqrt{\lambda}
             }
+            zBars[i][j] = 0;
+        }
+    }
+    double zBarsCopy[lda*n];
+    for (int j = 0; j < n; j++) {
+        for (int i = 0; i < lda; i++) {
+            zBarsCopy[i + (j * lda)] = zBars[i][j];
         }
     }
 
-    info = LAPACKE_dgels(LAPACK_COL_MAJOR, 'N', m, n, nrhs, zBarsCopy, lda, ys, ldb);
+    info = LAPACKE_dgels(LAPACK_COL_MAJOR, 'N', lda, n, nrhs, zBarsCopy, lda, ys, ldb);
     if (info == 0) {
         // variance calculation according to Apache Math Commons' bias-corrected
         // algorithm (Blei and McAuliffe's version didn't give as good results)
@@ -378,8 +396,8 @@ void trainPredictionWeights(SamplerState* samplerState) {
                     samplerState->corpusData->numResponses, zBars));
         */
     } else {
-        /*
         printf("LAPACK had an error: %d\n", info);
+        /*
         printf("\tLAPACK_ROW_MAJOR N %d %d %d zBarsCopy %d ys %d\n", m, n, nrhs, lda, ldb);
         */
     }
