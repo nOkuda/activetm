@@ -1,11 +1,12 @@
 from __future__ import division
+import copy
 import logging
 import numpy as np
 
 def labeled_centroid(distance, represent, dataset, labeled_ids, unlabeled_ids,
         model, rng, num_to_choose):
     if len(unlabeled_ids) <= num_to_choose:
-        logging.getLogger(__name__).info("num_to_choose > len(unlabeled_ids);\
+        logging.getLogger(__name__).info("num_to_choose > len(unlabeled_ids); \
                 returned copy of unlabeled_ids")
         return copy.deepcopy(unlabeled_ids)
     sums = np.array(represent(dataset, labeled_ids, model, rng))
