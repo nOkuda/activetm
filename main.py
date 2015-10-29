@@ -108,7 +108,6 @@ def pickle_data(hosts, settings, working_dir, outputdir):
         if pickle_name not in picklings:
             picklings.add(pickle_name)
             work.add(s)
-    sys.exit(0)
     lock = threading.Lock()
     threads = []
     for h in set(hosts):
