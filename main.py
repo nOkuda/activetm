@@ -101,10 +101,14 @@ def get_groups(config):
     return sorted(list(result))
 
 def pickle_data(hosts, settings, working_dir, outputdir):
+    picklings = set()
     work = set()
     for s in settings:
-        if not os.path.exists(utils.get_pickle_name(s)):
+        pickle_name = utils.get_pickle_name(s)
+        if pickle_name not in picklings:
+            picklings.add(pickle_name)
             work.add(s)
+    sys.exit(0)
     lock = threading.Lock()
     threads = []
     for h in set(hosts):
