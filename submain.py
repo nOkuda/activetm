@@ -3,33 +3,16 @@ import argparse
 import datetime
 import numpy as np
 import os
+import pickle
 import random
 import sys
 import time
-
-import ankura
-from ankura import tokenize
 
 import activetm.active.evaluate as evaluate
 import activetm.active.select as select
 import activetm.labeled
 import activetm.models as models
 import activetm.utils as utils
-
-def get_dataset(settings):
-    PIPELINE = []
-    if settings['corpus'].find('*') >= 0:
-        PIPELINE.append((ankura.read_glob, settings['corpus'], tokenize.simple))
-    else:
-        PIPELINE.append((ankura.read_file, settings['corpus'], tokenize.simple))
-    PIPELINE.extend([
-            (ankura.filter_stopwords, settings['stopwords']),
-            (ankura.filter_rarewords, int(settings['rare'])),
-            (ankura.filter_commonwords, int(settings['common'])),
-            (ankura.filter_smalldocs, int(settings['smalldoc']))])
-    if settings['pregenerate'] == 'YES':
-        PIPELINE.append((ankura.pregenerate_doc_tokens))
-    return ankura.run_pipeline(PIPELINE)
 
 def partition_data_ids(num_docs, rng, settings):
     TEST_SIZE = int(settings['testsize'])
@@ -61,17 +44,11 @@ if __name__ == '__main__':
         except OSError:
             pass
 
+    start = time.time()
+    with open(os.path.join(args.outputdir, utils.get_pickle_name(args.settings))) as ifh:
+        dataset = pickle.load(ifh)
     rng = random.Random(int(settings['seed']))
     model = models.build(rng, settings)
-
-    start = time.time()
-    pre_dataset = get_dataset(settings)
-    labels = activetm.labeled.get_labels(settings['labels'])
-    dataset = activetm.labeled.LabeledDataset(pre_dataset, labels)
-    end = time.time()
-    import_time = datetime.timedelta(seconds=end-start)
-
-    start = time.time()
     test_doc_ids, labeled_doc_ids, unlabeled_doc_ids =\
             partition_data_ids(dataset.num_docs, rng, settings)
     test_labels = []
@@ -115,7 +92,6 @@ if __name__ == '__main__':
     model.cleanup()
 
     output = []
-    output.append('# import time: {:s}'.format(str(import_time)))
     output.append('# init time: {:s}'.format(str(init_time)))
     for result in results:
         output.append('\t'.join([str(r) for r in result]))

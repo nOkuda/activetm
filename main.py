@@ -8,6 +8,9 @@ import subprocess
 import sys
 import threading
 
+import ankura
+
+import activetm.labeled
 import activetm.plot as plot
 import activetm.utils as utils
 
@@ -29,12 +32,12 @@ same settings.
 
 class JobThread(threading.Thread):
     def __init__(self, host, working_dir, settings, outputdir, label):
+        threading.Thread.__init__(self)
         self.host = host
         self.working_dir = working_dir
         self.settings = settings
         self.outputdir = outputdir
         self.label = label
-        threading.Thread.__init__(self)
 
     def run(self):
         subprocess.check_call(['ssh',
@@ -44,6 +47,29 @@ class JobThread(threading.Thread):
                             self.settings + ' ' +\
                             self.outputdir + ' ' +\
                             self.label + '; exit 0'])
+
+class PickleThread(threading.Thread):
+    def __init__(self, host, working_dir, work, outputdir, lock):
+        threading.Thread.__init__(self)
+        self.host = host
+        self.working_dir = working_dir
+        self.work = work
+        self.outputdir = outputdir
+        self.lock = lock
+
+    def run(self):
+        while True:
+            with self.lock:
+                if len(self.work) <= 0:
+                    break
+                else:
+                    settings = self.work.pop()
+            print 'Pickling: ', settings
+            subprocess.check_call(['ssh',
+                self.host,
+                'python ' + os.path.join(self.working_dir, 'pickle_data.py') + ' '+\
+                        settings + ' ' +\
+                        self.outputdir + '; exit 0'])
 
 def generate_settings(filename):
     with open(filename) as ifh:
@@ -73,6 +99,21 @@ def get_groups(config):
         d = utils.parse_settings(s)
         result.add(d['group'])
     return sorted(list(result))
+
+def pickle_data(hosts, settings, working_dir, outputdir):
+    work = set()
+    for s in settings:
+        if not os.path.exists(utils.get_pickle_name(s)):
+            work.add(s)
+    lock = threading.Lock()
+    threads = []
+    for h in set(hosts):
+        t = PickleThread(h, working_dir, work, outputdir, lock)
+        threads.append(t)
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
 
 def run_jobs(hosts, settings, working_dir, outputdir):
     threads = []
@@ -183,6 +224,7 @@ if __name__ == '__main__':
         print 'Cannot write output to: ', args.outputdir
         sys.exit(-1)
     groups = get_groups(args.config)
+    pickle_data(hosts, generate_settings(args.config), args.working_dir, args.outputdir)
     run_jobs(hosts, generate_settings(args.config), args.working_dir,
             args.outputdir)
     make_plots(args.outputdir, groups)

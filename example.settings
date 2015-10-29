@@ -1,4 +1,5 @@
 # corpus options
+pickle example
 corpus  /net/roi/okuda/state_of_the_union/quarter/*
 labels  /net/roi/okuda/state_of_the_union/ankura_quarter_timestamps.data
 # corpus  /net/roi/okuda/data/amazon/amazon.txt

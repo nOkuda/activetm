@@ -56,8 +56,12 @@ Note also that there is an example settings file:  `example.settings`.
 
 These settings are required for every run.
 
-* `corpus` takes a glob pattern specifying where the corpus can be found.  Check
-  the `ankura.read_glob` documentation for further details.
+* `pickle` takes a string which names the pickle file created for the data set
+* `corpus` takes one of two string.  One is a glob pattern specifying where the
+  corpus can be found.  Check the `ankura.pipeline.read_glob` documentation for
+  further details of this use.  The other is the path to a file containing
+  documents all in one file.  Check the `ankura.pipeline.read_file` for futher
+  details of this use.
 * `labels` takes the path to a file containing the labels for the documents
   imported from `corpus`.  It takes the form:
 
@@ -136,3 +140,11 @@ Gibbs sampling to perform inference.
 * `predictlag` takes an integer value specifying the number of states to sample
   between saved states for prediction.
 
+#### Settings for `sup_anchor`
+
+This model is an implementation of supervised anchor words.
+
+* `numtopics` takes an integer value specifying the number of topics the model
+  considers.
+* `numtrain` takes an integer value specifying the number of anchor words
+  instances to train during on training iteration.
