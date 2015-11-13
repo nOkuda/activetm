@@ -37,12 +37,13 @@ if __name__ == '__main__':
 
     start = time.time()
     settings = utils.parse_settings(args.settings)
-    pre_dataset = get_dataset(settings)
-    labels = activetm.labeled.get_labels(settings['labels'])
-    dataset = activetm.labeled.LabeledDataset(pre_dataset, labels)
     pickle_name = utils.get_pickle_name(args.settings)
-    pickle.dump(dataset, open(os.path.join(args.outputdir,
-            pickle_name), 'w'))
+    if not os.path.exists(os.path.join(args.outputdir, pickle_name)):
+        pre_dataset = get_dataset(settings)
+        labels = activetm.labeled.get_labels(settings['labels'])
+        dataset = activetm.labeled.LabeledDataset(pre_dataset, labels)
+        pickle.dump(dataset, open(os.path.join(args.outputdir,
+                pickle_name), 'w'))
     end = time.time()
     import_time = datetime.timedelta(seconds=end-start)
     with open(os.path.join(args.outputdir, pickle_name+'_import.time'), 'w') as ofh:

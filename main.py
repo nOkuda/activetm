@@ -33,6 +33,7 @@ same settings.
 class JobThread(threading.Thread):
     def __init__(self, host, working_dir, settings, outputdir, label):
         threading.Thread.__init__(self)
+        self.daemon = True
         self.host = host
         self.working_dir = working_dir
         self.settings = settings
@@ -51,6 +52,7 @@ class JobThread(threading.Thread):
 class PickleThread(threading.Thread):
     def __init__(self, host, working_dir, work, outputdir, lock):
         threading.Thread.__init__(self)
+        self.daemon = True
         self.host = host
         self.working_dir = working_dir
         self.work = work
@@ -64,7 +66,6 @@ class PickleThread(threading.Thread):
                     break
                 else:
                     settings = self.work.pop()
-            print 'Pickling: ', settings
             subprocess.check_call(['ssh',
                 self.host,
                 'python ' + os.path.join(self.working_dir, 'pickle_data.py') + ' '+\
