@@ -71,10 +71,16 @@ if __name__ == '__main__':
     eta = gen_eta(np_rng, args.K)
     phi = gen_phi(np_rng, args.V, args.K)
 
+    ''' frus-like
     corpus_doc_size_mean = 383.62065542751679
     corpus_doc_size_var = 179328.38476683316
     # mode will actually be corpus_doc_size_mode+5
     corpus_doc_size_mode = 170
+    '''
+    corpus_doc_size_mean = 88.360386879730868
+    corpus_doc_size_var = 3673.8537209605011
+    # mode will actually be corpus_doc_size_mode+5
+    corpus_doc_size_mode = 55
 
     corpus_sigma = np.sqrt(
             np.log(

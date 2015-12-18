@@ -1,7 +1,7 @@
 # corpus options
-pickle example
-corpus  /net/roi/okuda/state_of_the_union/quarter/*
-labels  /net/roi/okuda/state_of_the_union/ankura_quarter_timestamps.data
+pickle sotu.pickle
+corpus  /net/roi/okuda/state_of_the_union/speech_files_tot/*
+labels  /net/roi/okuda/state_of_the_union/ankura_timestamps.data
 # corpus  /net/roi/okuda/data/amazon/amazon.txt
 # labels  /net/roi/okuda/data/amazon/amazon.response
 

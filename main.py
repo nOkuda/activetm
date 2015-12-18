@@ -4,9 +4,11 @@ import numpy as np
 import datetime
 from email.mime.text import MIMEText
 import os
+import shutil
 import subprocess
 import sys
 import threading
+import time
 
 import ankura
 
@@ -39,15 +41,24 @@ class JobThread(threading.Thread):
         self.settings = settings
         self.outputdir = outputdir
         self.label = label
+        self.killed = False
 
+    # TODO use asyncio when code gets upgraded to Python 3
     def run(self):
-        subprocess.check_call(['ssh',
+        p = subprocess.Popen(['ssh',
             self.host,
             'python ' + os.path.join(self.working_dir, 'submain.py') + ' ' +\
                             self.working_dir + ' ' +\
                             self.settings + ' ' +\
                             self.outputdir + ' ' +\
                             self.label + '; exit 0'])
+        while True:
+            time.sleep(1)
+            if self.killed:
+                p.kill()
+                break
+            if p.poll() is not None:
+                break
 
 class PickleThread(threading.Thread):
     def __init__(self, host, working_dir, work, outputdir, lock):
@@ -66,7 +77,7 @@ class PickleThread(threading.Thread):
                     break
                 else:
                     settings = self.work.pop()
-            subprocess.check_call(['ssh',
+            subprocess.check_call(['ssh', '-t',
                 self.host,
                 'python ' + os.path.join(self.working_dir, 'pickle_data.py') + ' '+\
                         settings + ' ' +\
@@ -121,13 +132,27 @@ def pickle_data(hosts, settings, working_dir, outputdir):
 
 def run_jobs(hosts, settings, working_dir, outputdir):
     threads = []
-    for h, s, i in zip(hosts, settings, range(len(hosts))):
-        t = JobThread(h, working_dir, s, outputdir, str(i))
-        threads.append(t)
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    try:
+        for h, s, i in zip(hosts, settings, range(len(hosts))):
+            t = JobThread(h, working_dir, s, outputdir, str(i))
+            t.daemon = True
+            threads.append(t)
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    except KeyboardInterrupt:
+        print 'Killing children'
+        for t in threads:
+            t.killed = True
+        for t in threads:
+            t.join()
+        runningdir = os.path.join(outputdir, 'running')
+        for d in os.listdir(runningdir):
+            parts = d.split('.')
+            subprocess.call(['ssh', parts[0],
+                'kill -s 9 ' + parts[-1] + '; exit 0'])
+        sys.exit(-1)
 
 def extract_data(fpath):
     data = []
@@ -222,6 +247,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     begin_time = datetime.datetime.now()
+    runningdir = os.path.join(args.outputdir, 'running')
+    if os.path.exists(runningdir):
+        shutil.rmtree(runningdir)
+    try:
+        os.makedirs(runningdir)
+    except OSError:
+        pass
     hosts = get_hosts(args.hosts)
     check_counts(hosts, utils.count_settings(args.config))
     if not os.path.exists(args.outputdir):
@@ -235,6 +267,6 @@ if __name__ == '__main__':
     run_time = datetime.datetime.now() - begin_time
     with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
         ofh.write(str(run_time))
+    os.rmdir(runningdir)
     if args.email:
         send_notification(args.email, args.outputdir, run_time)
-
