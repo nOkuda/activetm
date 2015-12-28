@@ -191,6 +191,7 @@ def make_plots(outputdir, dirs):
     colors = plot.get_separate_colors(len(dirs))
     dirs.sort()
     count_plot = plot.Plotter(colors)
+    select_and_train_plot = plot.Plotter(colors)
     time_plot = plot.Plotter(colors)
     for d in dirs:
         data = np.array(get_data(os.path.join(outputdir, d)))
@@ -199,7 +200,7 @@ def make_plots(outputdir, dirs):
         counts = data[0,0,:]
         # set up a 2D matrix with each experiment on its own row and each
         # experiment's pR^2 results in columns
-        ys_mat = data[:,2,:]
+        ys_mat = data[:,-1,:]
         ys_medians, ys_means, ys_errs_minus, ys_errs_plus = get_stats(ys_mat)
         # set up a 2D matrix with each experiment on its own row and each
         # experiment's time results in columns
@@ -210,12 +211,20 @@ def make_plots(outputdir, dirs):
             ys_errs_plus])
         time_plot.plot(times_means, ys_means, d, ys_medians, [ys_errs_minus,
             ys_errs_plus], times_medians, [times_errs_minus, times_errs_plus])
+        select_and_train_mat = data[:,2,:]
+        sandt_medians, sandt_means, sandt_errs_minus, sandt_errs_plus = \
+                get_stats(select_and_train_mat)
+        select_and_train_plot.plot(counts, sandt_means, d, sandt_medians,
+                [sandt_errs_minus, sandt_errs_plus])
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
     count_plot.savefig('counts.pdf')
     time_plot.set_xlabel('Time elapsed (seconds)')
     time_plot.set_ylabel('pR$^2$')
     time_plot.savefig('times.pdf')
+    select_and_train_plot.set_xlabel('Number of Labeled Documents')
+    select_and_train_plot.set_ylabel('Time to select and train')
+    select_and_train_plot.savefig('select_and_train.pdf')
 
 def send_notification(email, outdir, run_time):
     msg = MIMEText('Run time: '+str(run_time))
@@ -228,6 +237,14 @@ def send_notification(email, outdir, run_time):
     status = p.close()
     if status:
         print "sendmail exit status", status
+
+def slack_notification(msg):
+    slackhook = 'https://hooks.slack.com/services/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'
+    payload = 'payload={"channel": "#potatojobs", "username": "potatobot", ' +\
+            '"text": "'+msg+'", "icon_emoji": ":fries:"}'
+    subprocess.call([
+        'curl', '-X', 'POST', '--data-urlencode', payload,
+            slackhook])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Launcher for ActiveTM '
@@ -246,27 +263,34 @@ if __name__ == '__main__':
             'completes', nargs='?')
     args = parser.parse_args()
 
-    begin_time = datetime.datetime.now()
-    runningdir = os.path.join(args.outputdir, 'running')
-    if os.path.exists(runningdir):
-        shutil.rmtree(runningdir)
     try:
-        os.makedirs(runningdir)
-    except OSError:
-        pass
-    hosts = get_hosts(args.hosts)
-    check_counts(hosts, utils.count_settings(args.config))
-    if not os.path.exists(args.outputdir):
-        print 'Cannot write output to: ', args.outputdir
-        sys.exit(-1)
-    groups = get_groups(args.config)
-    pickle_data(hosts, generate_settings(args.config), args.working_dir, args.outputdir)
-    run_jobs(hosts, generate_settings(args.config), args.working_dir,
-            args.outputdir)
-    make_plots(args.outputdir, groups)
-    run_time = datetime.datetime.now() - begin_time
-    with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
-        ofh.write(str(run_time))
-    os.rmdir(runningdir)
-    if args.email:
-        send_notification(args.email, args.outputdir, run_time)
+        begin_time = datetime.datetime.now()
+        slack_notification('Starting job: '+args.outputdir)
+        runningdir = os.path.join(args.outputdir, 'running')
+        if os.path.exists(runningdir):
+            shutil.rmtree(runningdir)
+        try:
+            os.makedirs(runningdir)
+        except OSError:
+            pass
+        hosts = get_hosts(args.hosts)
+        check_counts(hosts, utils.count_settings(args.config))
+        if not os.path.exists(args.outputdir):
+            print 'Cannot write output to: ', args.outputdir
+            sys.exit(-1)
+        groups = get_groups(args.config)
+        pickle_data(hosts, generate_settings(args.config), args.working_dir, args.outputdir)
+        run_jobs(hosts, generate_settings(args.config), args.working_dir,
+                args.outputdir)
+        make_plots(args.outputdir, groups)
+        run_time = datetime.datetime.now() - begin_time
+        with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
+            ofh.write(str(run_time))
+        os.rmdir(runningdir)
+        slack_notification('Job complete: '+args.outputdir)
+        if args.email:
+            send_notification(args.email, args.outputdir, run_time)
+    except:
+        slack_notification('Job died: '+args.outputdir)
+        raise
+

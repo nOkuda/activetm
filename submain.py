@@ -77,12 +77,17 @@ if __name__ == '__main__':
         init_time = datetime.timedelta(seconds=end-start)
 
         start = time.time()
+        select_and_train_start = time.time()
         model.train(dataset, labeled_doc_ids, known_labels)
+        select_and_train_end = time.time()
         metric = evaluate.pR2(model, test_words, test_labels,
                 test_labels_mean)
         results.append([len(labeled_doc_ids),
-                datetime.timedelta(seconds=time.time()-start).total_seconds(), metric])
+                datetime.timedelta(seconds=time.time()-start).total_seconds(),
+                datetime.timedelta(seconds=select_and_train_end-select_and_train_start).total_seconds(),
+                metric])
         while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
+            select_and_train_start = time.time()
             candidates = select.reservoir(list(unlabeled_doc_ids), rng,
                     CAND_SIZE)
             chosen = SELECT_METHOD(dataset, labeled_doc_ids, candidates, model, rng,
@@ -92,10 +97,13 @@ if __name__ == '__main__':
                 labeled_doc_ids.append(c)
                 unlabeled_doc_ids.remove(c)
             model.train(dataset, labeled_doc_ids, known_labels, True)
+            select_and_train_end = time.time()
             metric = evaluate.pR2(model, test_words, test_labels,
                     test_labels_mean)
             results.append([len(labeled_doc_ids),
-                    datetime.timedelta(seconds=time.time()-start).total_seconds(), metric])
+                    datetime.timedelta(seconds=time.time()-start).total_seconds(),
+                    datetime.timedelta(seconds=select_and_train_end-select_and_train_start).total_seconds(),
+                    metric])
         model.cleanup()
 
         output = []
