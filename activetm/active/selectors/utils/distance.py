@@ -1,4 +1,3 @@
-from __future__ import division
 import math
 
 def js_divergence(u, v):
@@ -27,3 +26,4 @@ def l2(u, v):
         diff = p - q
         result += diff * diff
     return math.sqrt(result)
+

@@ -1,14 +1,12 @@
-from __future__ import division
-
 import ankura
 import ctypes
 import heapq
 import numpy as np
 from sklearn.linear_model import Ridge
 
-import abstract
-import sampler.ctypesutils as ctypesutils
-import sampler.slda as slda
+from . import abstract
+from .sampler import ctypesutils
+from .sampler import slda
 from .. import labeled
 
 class SupervisedAnchor(abstract.AbstractModel):

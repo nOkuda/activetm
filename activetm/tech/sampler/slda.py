@@ -1,4 +1,3 @@
-from __future__ import division
 import copy
 import ctypes
 import heapq
@@ -7,9 +6,9 @@ import os
 import random
 import sys
 
-import sampling as sampling
-import wordindex as wordindex
-import ctypesutils as ctypesutils
+from . import sampling
+from . import wordindex
+from . import ctypesutils
 from .. import abstract
 
 script_dir = os.path.dirname(os.path.abspath(__file__))

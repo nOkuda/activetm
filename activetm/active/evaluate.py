@@ -1,5 +1,3 @@
-from __future__ import division
-
 def pR2(model, words, labels, labelmean):
     total_ss = 0.0
     residual_ss = 0.0
@@ -8,3 +6,4 @@ def pR2(model, words, labels, labelmean):
         residual_ss += (label - prediction)**2
         total_ss += (label - labelmean)**2
     return 1.0 - (residual_ss / total_ss)
+

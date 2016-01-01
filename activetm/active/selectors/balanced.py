@@ -1,8 +1,6 @@
-from __future__ import division
-
-import utils.aggregate as aggregate
-import utils.distance as distance
-import utils.represent as represent
+from .utils import aggregate
+from .utils import distance
+from .utils import represent
 
 def jsd_toptopic_balanced(dataset, labeled_ids, unlabeled_ids, model, rng,
         num_to_choose):

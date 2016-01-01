@@ -1,4 +1,3 @@
-from __future__ import division
 import copy
 import logging
 import numpy as np
@@ -70,3 +69,4 @@ def balanced_centroids(distance, represent, dataset, labeled_ids, unlabeled_ids,
         unlabeled_sums -= best_repr
         unlabeled_count -= 1
     return list(result)
+

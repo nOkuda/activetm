@@ -1,16 +1,14 @@
-from __future__ import division
-
-import tech.sampler.slda
-import tech.anchor
+from .tech.sampler import slda
+from .tech import anchor
 
 factory = {
-    'slda': tech.sampler.slda.SamplingSLDA,
-    'sup_anchor': tech.anchor.SupervisedAnchor
+    'slda': slda.SamplingSLDA,
+    'sup_anchor': anchor.SupervisedAnchor
 }
 
 def build(rng, settings):
     if settings['model'] == 'slda':
-        tech.sampler.slda.set_seed(int(settings['cseed']))
+        slda.set_seed(int(settings['cseed']))
         NUM_TOPICS = int(settings['numtopics'])
         ALPHA = float(settings['alpha'])
         BETA = float(settings['beta'])

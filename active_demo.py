@@ -10,9 +10,9 @@ import random
 import ankura
 from ankura import tokenize
 
-import activetm.active.evaluate as evaluate
-import activetm.active.select as select
-import activetm.models.sampler.slda as slda
+from activetm.active import evaluate
+from activetm.active import select
+from activetm.tech.sampler import slda
 
 SOTU_GLOB = '/net/roi/okuda/state_of_the_union/quarter/*'
 ENGL_STOP = '/net/roi/okuda/data/stopwords.txt'
@@ -53,7 +53,7 @@ def demo(C_SEED):
     """Runs a demo of active learning simulation with sLDA via sampling"""
     start = time.time()
     rng = random.Random(SEED)
-    models.sampler.slda.set_seed(C_SEED)
+    slda.set_seed(C_SEED)
     dataset = ankura.run_pipeline(PIPELINE)
     pre_labels = {}
     with open(SOTU_LABELS) as ifh:
@@ -64,13 +64,13 @@ def demo(C_SEED):
     for doc_id in range(dataset.num_docs):
         labels.append(pre_labels[dataset.titles[doc_id]])
     end = time.time()
-    print 'Import took:', datetime.timedelta(seconds=end-start)
-    print
+    print('Import took:', datetime.timedelta(seconds=end-start))
+    print()
 
     start = time.time()
 
     # initialize sets
-    shuffled_doc_ids = range(dataset.num_docs)
+    shuffled_doc_ids = list(range(dataset.num_docs))
     rng.shuffle(shuffled_doc_ids)
     test_doc_ids = shuffled_doc_ids[:TEST_SIZE]
     test_labels = []
@@ -85,14 +85,15 @@ def demo(C_SEED):
         known_labels.append(labels[t])
     unlabeled_doc_ids = set(shuffled_doc_ids[TEST_SIZE+START_LABELED:])
 
-    model = models.sampler.slda.SamplingSLDA(rng, NUM_TOPICS, ALPHA, BETA, VAR,
+    model = slda.SamplingSLDA(rng, NUM_TOPICS, ALPHA, BETA, VAR,
             NUM_TRAIN, NUM_SAMPLES_TRAIN, TRAIN_BURN, TRAIN_LAG,
             NUM_SAMPLES_PREDICT, PREDICT_BURN, PREDICT_LAG)
 
     # learning loop
     model.train(dataset, labeled_doc_ids, known_labels)
     metric = evaluate.pR2(model, test_words, test_labels, test_labels_mean)
-    print len(labeled_doc_ids), metric, datetime.timedelta(seconds=time.time()-start)
+    print(len(labeled_doc_ids), metric,
+            datetime.timedelta(seconds=time.time()-start))
     while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
         candidates = select.reservoir(list(unlabeled_doc_ids),
                 rng, CAND_SIZE)
@@ -103,12 +104,13 @@ def demo(C_SEED):
             unlabeled_doc_ids.remove(c)
         model.train(dataset, labeled_doc_ids, known_labels, True)
         metric = evaluate.pR2(model, test_words, test_labels, test_labels_mean)
-        print len(labeled_doc_ids), metric, datetime.timedelta(seconds=time.time()-start)
+        print(len(labeled_doc_ids), metric,
+                datetime.timedelta(seconds=time.time()-start))
     model.cleanup()
     end = time.time()
-    print
-    print 'Total simulation time:', datetime.timedelta(seconds=end-start)
-    print
+    print()
+    print('Total simulation time:', datetime.timedelta(seconds=end-start))
+    print()
 
 
 if __name__ == '__main__':
@@ -117,3 +119,4 @@ if __name__ == '__main__':
             random number generator of the C code')
     args = parser.parse_args()
     demo(args.cseed)
+

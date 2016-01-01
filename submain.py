@@ -1,4 +1,3 @@
-from __future__ import division
 import argparse
 import datetime
 import numpy as np
@@ -9,16 +8,15 @@ import socket
 import sys
 import time
 
-import activetm.active.evaluate as evaluate
-import activetm.active.select as select
-import activetm.labeled
-import activetm.models as models
-import activetm.utils as utils
+from activetm.active import evaluate
+from activetm.active import select
+from activetm import models
+from activetm import utils
 
 def partition_data_ids(num_docs, rng, settings):
     TEST_SIZE = int(settings['testsize'])
     START_LABELED = int(settings['startlabeled'])
-    shuffled_doc_ids = range(num_docs)
+    shuffled_doc_ids = list(range(num_docs))
     rng.shuffle(shuffled_doc_ids)
     test_doc_ids = list(shuffled_doc_ids[:TEST_SIZE])
     labeled_doc_ids = list(shuffled_doc_ids[TEST_SIZE:TEST_SIZE+START_LABELED])
@@ -52,7 +50,8 @@ if __name__ == '__main__':
             outputfh.write('running')
 
         start = time.time()
-        with open(os.path.join(args.outputdir, utils.get_pickle_name(args.settings))) as ifh:
+        input_pickle = os.path.join(args.outputdir, utils.get_pickle_name(args.settings))
+        with open(input_pickle, 'rb') as ifh:
             dataset = pickle.load(ifh)
         rng = random.Random(int(settings['seed']))
         model = models.build(rng, settings)
@@ -88,10 +87,10 @@ if __name__ == '__main__':
                 metric])
         while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
             select_and_train_start = time.time()
-            candidates = select.reservoir(list(unlabeled_doc_ids), rng,
-                    CAND_SIZE)
-            chosen = SELECT_METHOD(dataset, labeled_doc_ids, candidates, model, rng,
-                    LABEL_INCREMENT)
+            # must make unlabeled_doc_ids (which is a set) into a list
+            candidates = select.reservoir(list(unlabeled_doc_ids), rng, CAND_SIZE)
+            chosen = SELECT_METHOD(dataset, labeled_doc_ids, candidates, model,
+                    rng, LABEL_INCREMENT)
             for c in chosen:
                 known_labels.append(dataset.labels[dataset.titles[c]])
                 labeled_doc_ids.append(c)

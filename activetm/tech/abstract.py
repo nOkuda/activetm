@@ -7,3 +7,4 @@ class AbstractModel:
         raise NotImplementedError()
     def get_top_topics(self, dataset, doc_ids):
         raise NotImplementedError()
+

@@ -1,8 +1,8 @@
-from __future__ import division
 import argparse
 import numpy as np
 import datetime
 from email.mime.text import MIMEText
+import logging
 import os
 import shutil
 import subprocess
@@ -12,9 +12,8 @@ import time
 
 import ankura
 
-import activetm.labeled
-import activetm.plot as plot
-import activetm.utils as utils
+from activetm import plot
+from activetm import utils
 
 '''
 The output from an experiment should take the following form:
@@ -47,7 +46,7 @@ class JobThread(threading.Thread):
     def run(self):
         p = subprocess.Popen(['ssh',
             self.host,
-            'python ' + os.path.join(self.working_dir, 'submain.py') + ' ' +\
+            'python3 ' + os.path.join(self.working_dir, 'submain.py') + ' ' +\
                             self.working_dir + ' ' +\
                             self.settings + ' ' +\
                             self.outputdir + ' ' +\
@@ -79,7 +78,7 @@ class PickleThread(threading.Thread):
                     settings = self.work.pop()
             subprocess.check_call(['ssh', '-t',
                 self.host,
-                'python ' + os.path.join(self.working_dir, 'pickle_data.py') + ' '+\
+                'python3 ' + os.path.join(self.working_dir, 'pickle_data.py') + ' '+\
                         settings + ' ' +\
                         self.outputdir + '; exit 0'])
 
@@ -101,7 +100,7 @@ def get_hosts(filename):
 
 def check_counts(hosts, settingscount):
     if len(hosts) != settingscount:
-        print 'Node count and settings count do not match!'
+        logging.getLogger(__name__).error('Node count and settings count do not match!')
         sys.exit(1)
 
 def get_groups(config):
@@ -142,7 +141,7 @@ def run_jobs(hosts, settings, working_dir, outputdir):
         for t in threads:
             t.join()
     except KeyboardInterrupt:
-        print 'Killing children'
+        logging.getLogger(__name__).warning('Killing children')
         for t in threads:
             t.killed = True
         for t in threads:
@@ -236,7 +235,7 @@ def send_notification(email, outdir, run_time):
     p.write(msg.as_string())
     status = p.close()
     if status:
-        print "sendmail exit status", status
+        logging.getLogger(__name__).warning('sendmail exit status '+str(status))
 
 def slack_notification(msg):
     slackhook = 'https://hooks.slack.com/services/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'
@@ -276,7 +275,7 @@ if __name__ == '__main__':
         hosts = get_hosts(args.hosts)
         check_counts(hosts, utils.count_settings(args.config))
         if not os.path.exists(args.outputdir):
-            print 'Cannot write output to: ', args.outputdir
+            logging.getLogger(__name__).error('Cannot write output to: '+args.outputdir)
             sys.exit(-1)
         groups = get_groups(args.config)
         pickle_data(hosts, generate_settings(args.config), args.working_dir, args.outputdir)

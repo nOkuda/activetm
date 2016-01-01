@@ -1,4 +1,3 @@
-from __future__ import division
 import numpy as np
 
 def top_topic(dataset, doc_ids, model, rng):

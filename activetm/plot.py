@@ -1,4 +1,3 @@
-from __future__ import division
 import colorsys
 from itertools import cycle
 import matplotlib
@@ -69,3 +68,4 @@ if __name__ == '__main__':
     plotter.set_xlabel('x label')
     plotter.set_ylabel('y label')
     plotter.savefig('example.pdf')
+

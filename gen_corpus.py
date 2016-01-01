@@ -7,7 +7,7 @@ import scipy
 import sys
 
 from ankura.pipeline import Dataset
-from activetm.labeled import LabeledDataset
+from .activetm.labeled import LabeledDataset
 
 '''Magic numbers'''
 beta_dist_max = 25

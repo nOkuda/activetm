@@ -9,8 +9,8 @@ import time
 import ankura.pipeline
 from ankura import tokenize
 
-import activetm.labeled
-import activetm.utils as utils
+from activetm import labeled
+from activetm import utils
 
 def get_dataset(settings):
     PIPELINE = []
@@ -40,10 +40,10 @@ if __name__ == '__main__':
     pickle_name = utils.get_pickle_name(args.settings)
     if not os.path.exists(os.path.join(args.outputdir, pickle_name)):
         pre_dataset = get_dataset(settings)
-        labels = activetm.labeled.get_labels(settings['labels'])
-        dataset = activetm.labeled.LabeledDataset(pre_dataset, labels)
-        pickle.dump(dataset, open(os.path.join(args.outputdir,
-                pickle_name), 'w'))
+        labels = labeled.get_labels(settings['labels'])
+        dataset = labeled.LabeledDataset(pre_dataset, labels)
+        with open(os.path.join(args.outputdir, pickle_name), 'wb') as ofh:
+            pickle.dump(dataset, ofh)
     end = time.time()
     import_time = datetime.timedelta(seconds=end-start)
     with open(os.path.join(args.outputdir, pickle_name+'_import.time'), 'w') as ofh:

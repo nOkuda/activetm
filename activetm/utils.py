@@ -1,4 +1,3 @@
-from __future__ import division
 import ankura.util
 
 def count_settings(filename):
