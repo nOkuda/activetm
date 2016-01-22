@@ -1,5 +1,4 @@
 import ankura
-import ctypes
 import heapq
 import numpy as np
 from sklearn.linear_model import Ridge
@@ -20,17 +19,7 @@ class SupervisedAnchor(abstract.AbstractModel):
         self.rng = rng
         self.numtopics = numtopics
         self.numtrain = numtrain
-
-        self.alphas = (ctypes.c_double * numtopics)()
-        for i in range(numtopics):
-            self.alphas[i] = 0.1
-        self.hyperbeta = ctypes.c_double(0.01)
-
         self.numsamplesperpredictchain = 5
-        predictschedule = [50] * self.numsamplesperpredictchain
-        predictschedule[0] = 500
-        self.predictschedarr = ctypesutils.convertFromIntList(predictschedule)
-
         # other instance variables initialized in train:
         #   self.corpus_to_train_vocab
         #   self.vocab_size
@@ -81,47 +70,6 @@ class SupervisedAnchor(abstract.AbstractModel):
             ridge = Ridge()
             ridge.fit(X, np.array(knownresp))
             self.predictors.append(ridge)
-            '''
-            # jitter
-            for d in range(X.shape[1]):
-                X[d,d] += (self.rng.random()*1e-50) - 5e-51
-            weights, residuals, rank, s = np.linalg.lstsq(X, knownresp)
-            self.weightses.append(weights)
-            '''
-            '''
-            pretopicwordcounts = topics.T
-            vocabcounts = trainingset.M.sum(axis=1).A1
-            for i in range(trainingset.vocab_size):
-                pretopicwordcounts[:,i] *= vocabcounts[i] /\
-                        pretopicwordcounts[:,i].sum()
-            print pretopicwordcounts
-            print pretopicwordcounts.sum()
-            topicwordcounts = (ctypes.POINTER(ctypes.c_int) * self.numtopics)()
-            for i in range(self.numtopics):
-                topicwordcounts[i] = (ctypes.c_int * trainingset.vocab_size)()
-                for j in range(trainingset.vocab_size):
-                    topicwordcounts[i][j] = ctypes.c_int(
-                            int(round(pretopicwordcounts[i][j])))
-            numVocabList = [trainingset.vocab_size] * self.numtopics
-            print np.array(ctypesutils.convertToListOfLists(topicwordcounts,
-                    numVocabList)).sum()
-            prepresums = np.array(ctypesutils.convertToListOfLists(topicwordcounts,
-                        numVocabList))
-            presums = np.sum(prepresums, axis=1)
-            topicwordsum = ctypesutils.convertFromIntList(presums)
-            # note that I am using self.alpha and self.hyperbeta in the
-            # constructor twice because the constructor requires an eta and var;
-            # however, since the prediction topic sampling does not use eta nor
-            # var, I have merely reused self.alpha and self.hyperbeta to avoid
-            # superfluous code.  Note also that other unnecessary pointers are
-            # set to null.
-            samplerState = slda.SamplerState(ctypes.c_int(self.numtopics),
-                    ctypes.c_int(trainingset.vocab_size), self.alphas,
-                    self.hyperbeta, self.alphas, self.hyperbeta,
-                    None, None,
-                    None, topicwordcounts, topicwordsum)
-            self.samplers.append(samplerState)
-            '''
 
     def _get_epsilon(self, trainingsize):
         if trainingsize < 1e2:
@@ -152,15 +100,6 @@ class SupervisedAnchor(abstract.AbstractModel):
             result += ankura.topic.predict_topics(self.topicses[pos], docws,
                     rng=self.rng)
         result /= (len(docws) * self.numsamplesperpredictchain)
-        # return ankura.topic.predict_topics(self.topicses[pos], docws, rng=self.rng) / len(docws)
-        '''
-        cResults = slda.cPredict(ctypes.c_int(1), ctypes.pointer(self.samplers[pos]),
-                ctypes.c_int(len(docws)), ctypesutils.convertFromIntList(docws),
-                self.numsamplesperpredictchain, self.predictschedarr)
-        result = np.mean(ctypesutils.convertToList(cResults,
-            self.numsamplesperpredictchain))
-        slda.freeDoubleArray(cResults)
-        '''
         return result
 
     def _convert_vocab_space(self, doc):
@@ -180,23 +119,6 @@ class SupervisedAnchor(abstract.AbstractModel):
             docws = self._convert_vocab_space(dataset.doc_tokens(d))
             result.append(self._predict_topics(chain_num, docws))
         return result
-        '''With sampling
-        knownwords = (ctypes.POINTER(ctypes.c_int) * len(doc_ids))()
-        docSizes = []
-        for i, c in enumerate(doc_ids):
-            curDoc = self._convert_vocab_space(dataset.doc_tokens(c))
-            docSizes.append(len(curDoc))
-            knownwords[i] = ctypesutils.convertFromIntList(curDoc)
-        expectedTopicCounts = slda.getExpectedTopicCounts(self.samplers[chain_num], 
-                ctypes.c_int(len(doc_ids)),
-                ctypesutils.convertFromIntList(docSizes),
-                knownwords, self.numsamplesperpredictchain,
-                self.predictschedarr)
-        result = ctypesutils.convertToTlistOfLists(expectedTopicCounts,
-                [self.numtopics]*len(doc_ids))
-        freeDoubleMatrix(expectedTopicCounts, ctypes.c_int(len(doc_ids)))
-        return result
-        '''
 
     def get_topic_distribution(self, topic, chain_num, state_num):
         return np.array(self.topicses[chain_num][:, topic])
