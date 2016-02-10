@@ -14,7 +14,7 @@ programs and libraries installed:
 * `LAPACK`
 * `LAPACK` development headers
 
-Then run `make` in the `activetm/models/sampler` directory.
+Then run `make` in the `./activetm/tech/sampler` directory.
 
 To run the Python code, you will need to install the following modules:
 
