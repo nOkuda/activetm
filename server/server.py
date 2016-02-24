@@ -7,6 +7,7 @@ import numbers
 import tempfile
 import os
 import random
+import uuid
 
 import ankura
 
@@ -98,14 +99,54 @@ def get_random_doc():
             if i == selection-1:
                 document = doc.split('\t')[1].strip()
                 break
-    return flask.jsonify(selection=selection, document=document)
+    return flask.jsonify(document=document,docnumber=selection)
 
 
 @app.route('/')
-def serve_itm():
-    """Serves the Interactive Topic Modeling UI"""
-    return flask.send_from_directory('static', 'index.html')
+def serve_landing_page():
+    """Serves the Active Topic Modeling UI"""
+    return flask.send_from_directory('static','index.html')
 
+@app.route('/docs.html')
+def serve_ui():
+    return flask.send_from_directory('static','docs.html')
+
+
+@app.route('/scripts/script.js')
+def serve_ui_js():
+    """Serves the Javascript for the Active TM UI"""
+    return flask.send_from_directory('static/scripts','script.js')
+
+
+@app.route('/scripts/js.cookie.js')
+def serve_cookie_script():
+    """Serves the Javascript cookie script"""
+    return flask.send_from_directory('static/scripts','js.cookie.js')
+
+
+@app.route('/stylesheets/style.css')
+def serve_ui_css():
+    """Serves the CSS file for the Active TM UI"""
+    return flask.send_from_directory('static/stylesheets','style.css')
+
+
+@app.route('/uuid')
+def get_uid():
+    """Sends a UUID to the client"""
+    data = {"id": uuid.uuid4()}
+    return flask.jsonify(data)
+
+@app.route('/rated', methods=['POST'])
+def get_rating():
+    """Receives and saves a user rating to a specific user's file"""
+    flask.request.get_data()
+    input_json = flask.request.get_json(force=True)
+    user_data_dir = os.path.dirname(os.path.realpath(__file__)) + "/userData"
+    if not os.path.exists(user_data_dir):
+        os.makedirs(user_data_dir)
+    with open(user_data_dir + "/" + input_json['uid'] + ".data", 'a') as userFile:
+        userFile.write(str(input_json['timeToRate']) + "\t" + str(input_json['docNumber']) + "\t" + str(input_json['rating']) + "\n")
+    return 'OK'
 
 if __name__ == '__main__':
     get_dataset()

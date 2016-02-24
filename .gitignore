@@ -2,3 +2,4 @@
 *.so
 *.swp
 *.pickle
+*.data
