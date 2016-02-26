@@ -8,6 +8,7 @@ import tempfile
 import os
 import random
 import uuid
+import threading
 
 import ankura
 
@@ -47,6 +48,12 @@ TEST_SIZE = 200
 
 rng = random.Random(SEED)
 
+# This is the number of documents each user is required to complete
+REQUIRED_DOCS = 5
+
+user_dict = {}
+lock = threading.Lock()
+
 @ankura.util.memoize
 @ankura.util.pickle_cache('amazon.pickle')
 def get_dataset():
@@ -58,6 +65,14 @@ def get_dataset():
 @app.route('/random_doc')
 def get_random_doc():
     """Gets a document using the random method"""
+    # If they've done all required documents but one, remove the id from
+    #   the userDict and send the last document
+    user_id = flask.request.headers.get('uuid');
+    print(user_id)
+    with lock:
+        if user_dict[user_id]['num_docs'] == REQUIRED_DOCS-1:
+            if user_id in user_dict:
+                del user_dict[user_id]
     # Setup
     dataset = get_dataset()
     pre_labels = {}
@@ -99,16 +114,46 @@ def get_random_doc():
             if i == selection-1:
                 document = doc.split('\t')[1].strip()
                 break
-    return flask.jsonify(document=document,docnumber=selection)
+    # Update the user_dict (unless this was the last document and the user_id
+    #   was removed above)
+    with lock:
+        if user_id in user_dict:
+            user_dict[user_id]['num_docs'] = user_dict[user_id]['num_docs'] + 1
+            user_dict[user_id]['doc_number'] = selection
+    print(user_dict)
+    # Return the document
+    return flask.jsonify(document=document,doc_number=selection)
 
+
+@app.route('/old_doc')
+def get_old_doc():
+    """Gets the old document for someone if they have one,
+        if they refreshed the page for instance"""
+    # Create needed variables
+    doc_number = 0
+    document = ''
+    user_id = flask.request.headers.get('uuid')
+    # Get info from the user_dict to use to get the old document
+    with lock:
+        if user_id in user_dict:
+            doc_number = user_dict[user_id]['doc_number']
+    # Get document from the documents
+    with open(FILENAME, 'r') as ratings:
+        for i, doc in enumerate(ratings):
+            if i == doc_number-1:
+                document = doc.split('\t')[1].strip()
+                break
+    # Return the document and doc_number to the client
+    return flask.jsonify(document=document,doc_number=doc_number)
 
 @app.route('/')
 def serve_landing_page():
-    """Serves the Active Topic Modeling UI"""
+    """Serves the landing page for the Active Topic Modeling UI"""
     return flask.send_from_directory('static','index.html')
 
 @app.route('/docs.html')
 def serve_ui():
+    """Serves the Active Topic Modeling UI"""
     return flask.send_from_directory('static','docs.html')
 
 
@@ -116,6 +161,18 @@ def serve_ui():
 def serve_ui_js():
     """Serves the Javascript for the Active TM UI"""
     return flask.send_from_directory('static/scripts','script.js')
+
+
+@app.route('/end.html')
+def serve_end_page():
+    """Serves the end page for the Active TM UI"""
+    return flask.send_from_directory('static','end.html')
+
+
+@app.route('/scripts/end.js')
+def serve_end_js():
+    """Serves the Javascript for the end page for the Active TM UI"""
+    return flask.send_from_directory('static/scripts','end.js')
 
 
 @app.route('/scripts/js.cookie.js')
@@ -133,7 +190,11 @@ def serve_ui_css():
 @app.route('/uuid')
 def get_uid():
     """Sends a UUID to the client"""
-    data = {"id": uuid.uuid4()}
+    uid = uuid.uuid4();
+    data = {"id": uid}
+    with lock:
+        user_dict[str(uid)] = {'num_docs':0, 'doc_number':0}
+    print(user_dict)
     return flask.jsonify(data)
 
 @app.route('/rated', methods=['POST'])
@@ -144,8 +205,9 @@ def get_rating():
     user_data_dir = os.path.dirname(os.path.realpath(__file__)) + "/userData"
     if not os.path.exists(user_data_dir):
         os.makedirs(user_data_dir)
-    with open(user_data_dir + "/" + input_json['uid'] + ".data", 'a') as userFile:
-        userFile.write(str(input_json['timeToRate']) + "\t" + str(input_json['docNumber']) + "\t" + str(input_json['rating']) + "\n")
+    file_to_open = user_data_dir+"/"+input_json['uid']+".data"
+    with open(file_to_open,'a') as user_file:
+      user_file.write(str(input_json['time_to_rate']) + "\t" + str(input_json['doc_number']) + "\t" + str(input_json['rating']) + "\n")
     return 'OK'
 
 if __name__ == '__main__':

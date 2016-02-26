@@ -109,39 +109,68 @@ $(function() {
 
 $( document ).ready(function() {
     
+  //Set up 'global' variables (terrible, I know)
   var d = new Date();
   var oldtime = d.getTime();
   var newtime
   var docnumber
+
+  //Send data when a star rating is given and then get a new document
   $('#stars').on('starrr:change', function(e, value){
     d = new Date();
     newtime = d.getTime();
     $.ajax({
       type: 'POST',
-      url: "http://localhost:3000/rated",
+      url: "/rated",
       data: JSON.stringify({
         "rating": value,
-        "timeToRate": (newtime - oldtime),
-        "uid": Cookies.get('uuid'),
-        "docNumber": docnumber
+        "time_to_rate": (newtime - oldtime),
+        "uid": Cookies.get('user_study_uuid'),
+        "doc_number": docnumber
       }),
       dataType: "json",
       contentType: "application/json"
     });
     oldtime = d.getTime();
-    $.get("/random_doc", function(data) {
-      $("#document").text(data["document"]);
-      docnumber = data["docnumber"];
-    });
+    getRandomDoc();
   });
   
-  $.get("/random_doc", function(data) {
-    $("#document").text(data["document"]);
-    docnumber = data["docnumber"];
-  });
+  //Function that gets random documents
+  var getRandomDoc = function() {
+    $.ajax({
+      type: 'GET',
+      url: "/random_doc",
+      headers: {'uuid': Cookies.get('user_study_uuid')},
+      success: function(data) {
+        $("#document").text(data["document"]);
+        docnumber = data["doc_number"];
+      }
+    });
+  }
 
-  $.get("/uuid", function(data) {
-    Cookies.set('uuid', data.id);
-  });
+  //Function that gets the user's old document (if they just refreshed)
+  var getOldDoc = function() {
+    $.ajax({
+      type: 'GET',
+      url: '/old_doc',
+      headers: {'uuid': Cookies.get('user_study_uuid')},
+      success: function(data) {
+        $('#document').text(data['document']);
+        docnumber = data['doc_number'];
+      }
+    });
+  }
+
+  //Check whether this person is in the middle of the study (has a uuid),
+  //  give them one if not (so they start at the beginning of the process)
+  if (Cookies.get('user_study_uuid') === undefined) {
+    $.get("/uuid", function(data) {
+      Cookies.set('user_study_uuid', data.id);
+      //Only get a first random document if they are new
+      getRandomDoc();
+    });
+  }
+  //If they are not new, get their old document so they can rate it
+  else { getOldDoc(); }
 
 });

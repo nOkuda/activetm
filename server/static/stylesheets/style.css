@@ -1,26 +1,26 @@
 .container {
-    text-align: center;
+  text-align: center;
 }
 
 .glyphicon-star {
-    font-size: 40px;
-    color: rgb(140, 140, 10);
+  font-size: 40px;
+  color: rgb(140, 140, 10);
 }
 
 .glyphicon-star-empty {
-    font-size: 40px;
-    color: rgb(140, 140, 10);
+  font-size: 40px;
+  color: rgb(140, 140, 10);
 }
 
 #stars {
-    margin-top: 10px;
-    display: inline-block;
+  margin-top: 10px;
+  display: inline-block;
 }
 
 #document-container {
-    margin-top: 10px;
+  margin-top: 10px;
 }
 
 #document {
-    font-size: 19px;
+  font-size: 19px;
 }
