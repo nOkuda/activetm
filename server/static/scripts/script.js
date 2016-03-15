@@ -112,13 +112,15 @@ $( document ).ready(function() {
   //Set up 'global' variables (terrible, I know)
   var d = new Date();
   var oldtime = d.getTime();
-  var newtime
-  var docnumber
+  var newtime;
+  var docnumber;
 
   //Send data when a star rating is given and then get a new document
   $('#stars').on('starrr:change', function(e, value){
+    //Not sure if this new Date object is needed...
     d = new Date();
     newtime = d.getTime();
+    //Send the data over to the server when the user gives a rating
     $.ajax({
       type: 'POST',
       url: "/rated",
@@ -132,16 +134,21 @@ $( document ).ready(function() {
       contentType: "application/json"
     });
     oldtime = d.getTime();
-    getRandomDoc();
+    getDoc();
   });
   
   //Function that gets random documents
-  var getRandomDoc = function() {
+  var getDoc = function() {
     $.ajax({
       type: 'GET',
-      url: "/random_doc",
+      url: "/get_doc",
       headers: {'uuid': Cookies.get('user_study_uuid')},
       success: function(data) {
+        //If we're done getting documents, redirect to end page
+        if (data['doc_number'] === 0) {
+          location.href = '/end.html';
+          return false;
+        }
         $("#document").text(data["document"]);
         docnumber = data["doc_number"];
       }
@@ -166,8 +173,9 @@ $( document ).ready(function() {
   if (Cookies.get('user_study_uuid') === undefined) {
     $.get("/uuid", function(data) {
       Cookies.set('user_study_uuid', data.id);
+      Cookies.set('user_study_num_docs', 0);
       //Only get a first random document if they are new
-      getRandomDoc();
+      getDoc();
     });
   }
   //If they are not new, get their old document so they can rate it

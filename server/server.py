@@ -47,6 +47,10 @@ LABEL_INCREMENT = 10
 TEST_SIZE = 200
 
 rng = random.Random(SEED)
+# Create model
+model = slda.SamplingSLDA(rng, NUM_TOPICS, ALPHA, BETA, VAR,
+        NUM_TRAIN, NUM_SAMPLES_TRAIN, TRAIN_BURN, TRAIN_LAG,
+        NUM_SAMPLES_PREDICT, PREDICT_BURN, PREDICT_LAG)
 
 # This is the number of documents each user is required to complete
 REQUIRED_DOCS = 5
@@ -62,17 +66,20 @@ def get_dataset():
     return dataset
 
 
-@app.route('/random_doc')
-def get_random_doc():
-    """Gets a document using the random method"""
+@app.route('/get_doc')
+def get_doc():
+    """Gets a document using the correct method"""
     # If they've done all required documents but one, remove the id from
     #   the userDict and send the last document
-    user_id = flask.request.headers.get('uuid');
-    print(user_id)
+    user_id = flask.request.headers.get('uuid')
+    num_docs = 0
     with lock:
-        if user_dict[user_id]['num_docs'] == REQUIRED_DOCS-1:
-            if user_id in user_dict:
+        if user_id in user_dict:
+            num_docs = user_dict[user_id]['num_docs']
+            if user_dict[user_id]['num_docs'] == REQUIRED_DOCS:
                 del user_dict[user_id]
+                # Set this very large to get selection to be 0 below
+                num_docs = 9999999999999
     # Setup
     dataset = get_dataset()
     pre_labels = {}
@@ -100,20 +107,24 @@ def get_random_doc():
         known_labels.append(labels[t])
     unlabeled_doc_ids = set(shuffled_doc_ids[TEST_SIZE+START_LABELED:])
 
-    # Create model
-    model = slda.SamplingSLDA(rng, NUM_TOPICS, ALPHA, BETA, VAR,
-            NUM_TRAIN, NUM_SAMPLES_TRAIN, TRAIN_BURN, TRAIN_LAG,
-            NUM_SAMPLES_PREDICT, PREDICT_BURN, PREDICT_LAG)
-
+    # If selection stays 0, then we need to send the user to the end page
+    selection = 0
     # Return document number
-    selection = select.random(dataset, labeled_doc_ids, 
-                            list(unlabeled_doc_ids), model, rng, 1)[0]
+    if (num_docs < REQUIRED_DOCS/2):
+        selection = select.random(dataset, labeled_doc_ids, 
+                                list(unlabeled_doc_ids), model, rng, 1)[0]
+    # TODO: make this use the right kind of selection
+    elif num_docs <= REQUIRED_DOCS:
+        selection = select.random(dataset, labeled_doc_ids, 
+                                list(unlabeled_doc_ids), model, rng, 1)[0]
+
     document = None
     with open(FILENAME, 'r') as documents:
         for i, doc in enumerate(documents):
             if i == selection-1:
                 document = doc.split('\t')[1].strip()
                 break
+
     # Update the user_dict (unless this was the last document and the user_id
     #   was removed above)
     with lock:
@@ -191,7 +202,7 @@ def serve_ui_css():
 def get_uid():
     """Sends a UUID to the client"""
     uid = uuid.uuid4();
-    data = {"id": uid}
+    data = {'id': uid}
     with lock:
         user_dict[str(uid)] = {'num_docs':0, 'doc_number':0}
     print(user_dict)
@@ -207,7 +218,7 @@ def get_rating():
         os.makedirs(user_data_dir)
     file_to_open = user_data_dir+"/"+input_json['uid']+".data"
     with open(file_to_open,'a') as user_file:
-      user_file.write(str(input_json['time_to_rate']) + "\t" + str(input_json['doc_number']) + "\t" + str(input_json['rating']) + "\n")
+        user_file.write(str(input_json['time_to_rate']) + "\t" + str(input_json['doc_number']) + "\t" + str(input_json['rating']) + "\n")
     return 'OK'
 
 if __name__ == '__main__':
