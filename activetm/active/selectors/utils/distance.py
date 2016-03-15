@@ -11,7 +11,7 @@ def kl_divergence(u, v):
         if abs(p) < epsilon:
             # here, we define 0*log(0) = 0
             continue
-        result += p * math.log(p) / math.log(q)
+        result += p * (math.log(p) - math.log(q))
     return result
 
 def l1(u, v):

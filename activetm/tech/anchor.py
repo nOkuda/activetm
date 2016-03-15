@@ -58,15 +58,15 @@ class SupervisedAnchor(abstract.AbstractModel):
         for _ in range(self.numtrain):
             anchors = ankura.anchor.gramschmidt_anchors(trainingset,
                     self.numtopics, 0.1 * len(trainingset.titles),
-                    1000 if trainingset.vocab_size > 1000 else trainingset.vocab_size)
+                    project_dim=1000 if trainingset.vocab_size > 1000 else trainingset.vocab_size)
             topics = ankura.topic.recover_topics(trainingset, anchors,
                     self._get_epsilon(trainingset.num_docs))
             self.topicses.append(topics)
             X = np.zeros((len(trainingset.titles), self.numtopics))
             for d in range(len(trainingset.titles)):
-                X[d,:] = ankura.topic.predict_topics(topics,
-                        trainingset.doc_tokens(d), rng=self.rng) / \
-                        len(trainingset.doc_tokens(d))
+                topic_counts, zs = ankura.topic.predict_topics(
+                    topics, trainingset.doc_tokens(d), rng=self.rng)
+                X[d,:] = topic_counts / len(trainingset.doc_tokens(d))
             ridge = Ridge()
             ridge.fit(X, np.array(knownresp))
             self.predictors.append(ridge)
@@ -97,8 +97,9 @@ class SupervisedAnchor(abstract.AbstractModel):
             return np.array([1.0 / self.numtopics] * self.numtopics)
         result = np.zeros(self.numtopics)
         for _ in range(self.numsamplesperpredictchain):
-            result += ankura.topic.predict_topics(self.topicses[pos], docws,
-                    rng=self.rng)
+            counts, zs = ankura.topic.predict_topics(
+                self.topicses[pos], docws, rng=self.rng)
+            result += counts
         result /= (len(docws) * self.numsamplesperpredictchain)
         return result
 
