@@ -109,35 +109,33 @@ $(function() {
 
 $( document ).ready(function() {
     
-  //Set up 'global' variables (terrible, I know)
-  var d = new Date();
-  var oldtime = d.getTime();
-  var newtime;
+  //Set up global variable (terrible, I know)
   var docnumber;
+  var d = new Date();
+  var starttime = d.getTime();
 
   //Send data when a star rating is given and then get a new document
   $('#stars').on('starrr:change', function(e, value){
-    //Not sure if this new Date object is needed...
     d = new Date();
-    newtime = d.getTime();
+    var endtime = d.getTime();
     //Send the data over to the server when the user gives a rating
     $.ajax({
       type: 'POST',
       url: "/rated",
       data: JSON.stringify({
         "rating": value,
-        "time_to_rate": (newtime - oldtime),
+        "start_time": starttime,
+        "end_time": endtime,
         "uid": Cookies.get('user_study_uuid'),
         "doc_number": docnumber
       }),
       dataType: "json",
       contentType: "application/json"
     });
-    oldtime = d.getTime();
     getDoc();
   });
   
-  //Function that gets random documents
+  //Function that gets documents
   var getDoc = function() {
     $.ajax({
       type: 'GET',
@@ -151,11 +149,13 @@ $( document ).ready(function() {
         }
         $("#document").text(data["document"]);
         docnumber = data["doc_number"];
+        d = new Date();
+        starttime = d.getTime();
       }
     });
   }
 
-  //Function that gets the user's old document (if they just refreshed)
+  //Function that gets the user's old document (if they refreshed)
   var getOldDoc = function() {
     $.ajax({
       type: 'GET',
@@ -163,7 +163,7 @@ $( document ).ready(function() {
       headers: {'uuid': Cookies.get('user_study_uuid')},
       success: function(data) {
         $('#document').text(data['document']);
-        docnumber = data['doc_number'];
+        docnumber = data["doc_number"];
       }
     });
   }

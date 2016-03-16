@@ -9,13 +9,16 @@ import os
 import random
 import uuid
 import threading
+import pickle
 
 import ankura
 
 from activetm.active import select
 from activetm.tech.sampler import slda
 
+
 app = flask.Flask(__name__, static_url_path='')
+
 
 FILENAME = '/local/cojoco/git/amazon/amazon.txt'
 ENGL_STOP = '/local/cojoco/git/jeffData/stopwords/english.txt'
@@ -25,8 +28,10 @@ PIPELINE = [(ankura.read_file, FILENAME, ankura.tokenize.simple),
             (ankura.filter_rarewords, 100),
             (ankura.filter_commonwords, 2000)] 
 
+
 CAND_SIZE = 500
 SEED = 531
+
 
 NUM_TOPICS = 20
 ALPHA = 0.1
@@ -40,11 +45,14 @@ NUM_SAMPLES_PREDICT = 5
 PREDICT_BURN = 10
 PREDICT_LAG = 5
 
+
 START_LABELED = 50
 END_LABELED = 100
 LABEL_INCREMENT = 10
 
+
 TEST_SIZE = 200
+
 
 rng = random.Random(SEED)
 # Create model
@@ -52,11 +60,52 @@ model = slda.SamplingSLDA(rng, NUM_TOPICS, ALPHA, BETA, VAR,
         NUM_TRAIN, NUM_SAMPLES_TRAIN, TRAIN_BURN, TRAIN_LAG,
         NUM_SAMPLES_PREDICT, PREDICT_BURN, PREDICT_LAG)
 
+
 # This is the number of documents each user is required to complete
 REQUIRED_DOCS = 5
 
+
+# Everything in this block needs to be run at server startup
+# user_dict holds information on users
 user_dict = {}
 lock = threading.Lock()
+# filedict is a docnumber to document dictionary
+filedict = {}
+# Here we populate filedict with docnumber as the key and document as the value
+with open(FILENAME, 'r') as f:
+    for line in f:
+        filedict[line.split('\t')[0]] = line.split('\t')[1]
+doc_order = []
+# This holds where we currently are in doc_order
+doc_order_index = 0
+# Here we get the order of documents to be served
+with open('best_order.pickle', 'rb') as f:
+    d = pickle.load(f)
+    for tup in d:
+        doc_order.append(tup[0])
+# This maintains state if the server crashes
+try:
+    last_state = open('last_state.pickle', 'rb')
+except IOError:
+    print('No last_state.pickle file, assuming no previous state')
+else:
+    state = pickle.load(last_state)
+    with lock:
+        user_dict = state['user_dict']
+    doc_order_index = state['doc_order_index']
+    print("Last state: " + str(state))
+    last_state.close()
+
+
+def save_state():
+    """Saves the state of the server to a pickle file"""
+    last_state = {}
+    global user_dict
+    last_state['user_dict'] = user_dict
+    global doc_order_index
+    last_state['doc_order_index'] = doc_order_index
+    pickle.dump( last_state, open('last_state.pickle', 'wb') )
+
 
 @ankura.util.memoize
 @ankura.util.pickle_cache('amazon.pickle')
@@ -66,9 +115,9 @@ def get_dataset():
     return dataset
 
 
-@app.route('/get_doc')
-def get_doc():
-    """Gets a document using the correct method"""
+@app.route('/get_random_doc')
+def get_random_doc():
+    """Gets a document using the random method"""
     # If they've done all required documents but one, remove the id from
     #   the userDict and send the last document
     user_id = flask.request.headers.get('uuid')
@@ -119,9 +168,11 @@ def get_doc():
                                 list(unlabeled_doc_ids), model, rng, 1)[0]
 
     document = None
+    doc_number = 0
     with open(FILENAME, 'r') as documents:
         for i, doc in enumerate(documents):
             if i == selection-1:
+                doc_number = doc.split('\t')[0].strip()
                 document = doc.split('\t')[1].strip()
                 break
 
@@ -130,10 +181,43 @@ def get_doc():
     with lock:
         if user_id in user_dict:
             user_dict[user_id]['num_docs'] = user_dict[user_id]['num_docs'] + 1
-            user_dict[user_id]['doc_number'] = selection
+            user_dict[user_id]['doc_index'] = selection
+            user_dict[user_id]['doc_number'] = doc_number
     print(user_dict)
     # Return the document
-    return flask.jsonify(document=document,doc_number=selection)
+    return flask.jsonify(document=document,doc_index=selection,
+            doc_number=doc_number)
+
+
+@app.route('/get_doc')
+def get_doc():
+    """Gets the next document for whoever is asking"""
+    # If they've done all required documents but one, remove the id from
+    #   the userDict and send the last document
+    user_id = flask.request.headers.get('uuid')
+    num_docs = 0
+    doc_number = 0
+    document = ''
+    with lock:
+        if user_id in user_dict:
+            num_docs = user_dict[user_id]['num_docs']
+            if user_dict[user_id]['num_docs'] == REQUIRED_DOCS:
+                del user_dict[user_id]
+
+    # Update the user_dict (unless this was the last document and the user_id
+    #   was removed above)
+    with lock:
+        if user_id in user_dict:
+            global doc_order_index
+            doc_number = doc_order[doc_order_index]
+            doc_order_index += 1
+            document = filedict[doc_number]
+            user_dict[user_id]['num_docs'] = user_dict[user_id]['num_docs'] + 1
+            user_dict[user_id]['doc_number'] = doc_number
+    # Save state (in case the server crashes)
+    save_state()
+    # Return the document
+    return flask.jsonify(document=document,doc_number=doc_number)
 
 
 @app.route('/old_doc')
@@ -148,14 +232,8 @@ def get_old_doc():
     with lock:
         if user_id in user_dict:
             doc_number = user_dict[user_id]['doc_number']
-    # Get document from the documents
-    with open(FILENAME, 'r') as ratings:
-        for i, doc in enumerate(ratings):
-            if i == doc_number-1:
-                document = doc.split('\t')[1].strip()
-                break
-    # Return the document and doc_number to the client
-    return flask.jsonify(document=document,doc_number=doc_number)
+    # Return the document and doc_index to the client
+    return flask.jsonify(document=filedict[doc_number],doc_number=doc_number)
 
 @app.route('/')
 def serve_landing_page():
@@ -204,7 +282,7 @@ def get_uid():
     uid = uuid.uuid4();
     data = {'id': uid}
     with lock:
-        user_dict[str(uid)] = {'num_docs':0, 'doc_number':0}
+        user_dict[str(uid)] = {'num_docs':0, 'doc_index':0}
     print(user_dict)
     return flask.jsonify(data)
 
@@ -218,7 +296,7 @@ def get_rating():
         os.makedirs(user_data_dir)
     file_to_open = user_data_dir+"/"+input_json['uid']+".data"
     with open(file_to_open,'a') as user_file:
-        user_file.write(str(input_json['time_to_rate']) + "\t" + str(input_json['doc_number']) + "\t" + str(input_json['rating']) + "\n")
+        user_file.write(str(input_json['start_time']) + "\t" + str(input_json['end_time']) + "\t" + str(input_json['doc_number']) + "\t" + str(input_json['rating']) + "\n")
     return 'OK'
 
 if __name__ == '__main__':
