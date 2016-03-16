@@ -13,7 +13,7 @@ app = flask.Flask(__name__, static_url_path='')
 FILENAME = '/aml/data/amazon/amazon.txt'
 
 # This is the number of documents each user is required to complete
-REQUIRED_DOCS = 200
+REQUIRED_DOCS = 60
 
 
 # Everything in this block needs to be run at server startup
