@@ -108,7 +108,6 @@ $(function() {
 });
 
 $( document ).ready(function() {
-    
   //Set up global variable (terrible, I know)
   var docnumber;
   var d = new Date();
@@ -134,7 +133,7 @@ $( document ).ready(function() {
     });
     getDoc();
   });
-  
+
   //Function that gets documents
   var getDoc = function() {
     $.ajax({
@@ -147,6 +146,7 @@ $( document ).ready(function() {
           location.href = '/end.html';
           return false;
         }
+        $("#progress").text("Progress:  "+data["completed"]+"/200")
         $("#document").text(data["document"]);
         docnumber = data["doc_number"];
         d = new Date();
@@ -162,6 +162,7 @@ $( document ).ready(function() {
       url: '/old_doc',
       headers: {'uuid': Cookies.get('user_study_uuid')},
       success: function(data) {
+        $("#progress").text("Progress:  "+data["completed"]+"/200")
         $('#document').text(data['document']);
         docnumber = data["doc_number"];
       }
