@@ -5,11 +5,15 @@ import os
 import uuid
 import threading
 import pickle
+import sys
 
 
 app = flask.Flask(__name__, static_url_path='')
 
-ORDER_PICKLE = 'best_order.pickle'
+if len(sys.argv) > 1:
+    ORDER_PICKLE = sys.argv[1]
+else:
+    ORDER_PICKLE = 'best_order.pickle'
 
 # This is the number of documents each user is required to complete
 REQUIRED_DOCS = 60
