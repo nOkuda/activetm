@@ -15,9 +15,6 @@ if len(sys.argv) > 1:
 else:
     ORDER_PICKLE = 'best_order.pickle'
 
-# This is the number of documents each user is required to complete
-REQUIRED_DOCS = 60
-
 # Everything in this block needs to be run at server startup
 # user_dict holds information on users
 user_dict = {}
@@ -65,10 +62,6 @@ def get_doc():
     doc_number = 0
     document = ''
     completed = 0
-    with lock:
-        if user_id in user_dict:
-            if user_dict[user_id]['num_docs'] == REQUIRED_DOCS:
-                del user_dict[user_id]
 
     # Update the user_dict (unless this was the last document and the user_id
     #   was removed above)

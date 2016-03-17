@@ -146,7 +146,7 @@ $( document ).ready(function() {
           location.href = '/end.html';
           return false;
         }
-        $("#progress").text("Completed:  "+data["completed"]+"/60")
+        $("#progress").text("Completed:  "+data["completed"])
         $("#document").text(data["document"]);
         docnumber = data["doc_number"];
         d = new Date();
