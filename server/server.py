@@ -9,28 +9,23 @@ import pickle
 
 app = flask.Flask(__name__, static_url_path='')
 
-
-FILENAME = '/aml/data/amazon/amazon.txt'
+ORDER_PICKLE = 'best_order.pickle'
 
 # This is the number of documents each user is required to complete
 REQUIRED_DOCS = 60
-
 
 # Everything in this block needs to be run at server startup
 # user_dict holds information on users
 user_dict = {}
 lock = threading.Lock()
 # filedict is a docnumber to document dictionary
-filedict = {}
-# Here we populate filedict with docnumber as the key and document as the value
-with open(FILENAME, 'r') as f:
-    for line in f:
-        filedict[line.split('\t')[0]] = line.split('\t')[1]
+with open('filedict.pickle', 'rb') as ifh:
+    filedict = pickle.load(ifh)
 doc_order = []
 # This holds where we currently are in doc_order
 doc_order_index = 0
 # Here we get the order of documents to be served
-with open('best_order.pickle', 'rb') as f:
+with open(ORDER_PICKLE, 'rb') as f:
     d = pickle.load(f)
     for tup in d:
         doc_order.append(tup[0])
