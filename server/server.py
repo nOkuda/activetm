@@ -5,43 +5,54 @@ import os
 import uuid
 import threading
 import pickle
-import sys
+import random
 
 
 app = flask.Flask(__name__, static_url_path='')
+# users must label REQUIRED_DOCS documents
+REQUIRED_DOCS = 10
+ORDER_PICKLE = 'order.pickle'
 
-if len(sys.argv) > 1:
-    ORDER_PICKLE = sys.argv[1]
-else:
-    ORDER_PICKLE = 'best_order.pickle'
+def get_user_dict_on_start():
+    """Loads user data"""
+    # This maintains state if the server crashes
+    try:
+        last_state = open('last_state.pickle', 'rb')
+    except IOError:
+        print('No last_state.pickle file, assuming no previous state')
+    else:
+        state = pickle.load(last_state)
+        print("Last state: " + str(state))
+        last_state.close()
+        return state['user_dict']
+    # but if the server is starting fresh, so does the user data
+    return {}
 
+def get_filedict():
+    """Loads filedict"""
+    with open('filedict.pickle', 'rb') as ifh:
+        return pickle.load(ifh)
+
+def get_doc_order():
+    """Loads document order"""
+    result = []
+    # Here we get the order of documents to be served
+    with open(ORDER_PICKLE, 'rb') as ifh:
+        data = pickle.load(ifh)
+    for tup in data:
+        result.append(tup[0])
+    return result
+
+################################################################################
 # Everything in this block needs to be run at server startup
 # user_dict holds information on users
-user_dict = {}
+user_dict = get_user_dict_on_start()
 lock = threading.Lock()
+rng = random.Random()
 # filedict is a docnumber to document dictionary
-with open('filedict.pickle', 'rb') as ifh:
-    filedict = pickle.load(ifh)
-doc_order = []
-# This holds where we currently are in doc_order
-doc_order_index = 0
-# Here we get the order of documents to be served
-with open(ORDER_PICKLE, 'rb') as f:
-    d = pickle.load(f)
-    for tup in d:
-        doc_order.append(tup[0])
-# This maintains state if the server crashes
-try:
-    last_state = open('last_state.pickle', 'rb')
-except IOError:
-    print('No last_state.pickle file, assuming no previous state')
-else:
-    state = pickle.load(last_state)
-    with lock:
-        user_dict = state['user_dict']
-    doc_order_index = state['doc_order_index']
-    print("Last state: " + str(state))
-    last_state.close()
+filedict = get_filedict()
+doc_order = get_doc_order()
+################################################################################
 
 
 def save_state():
@@ -49,31 +60,28 @@ def save_state():
     last_state = {}
     global user_dict
     last_state['user_dict'] = user_dict
-    global doc_order_index
-    last_state['doc_order_index'] = doc_order_index
+    print(user_dict)
     pickle.dump(last_state, open('last_state.pickle', 'wb'))
 
 @app.route('/get_doc')
 def get_doc():
     """Gets the next document for whoever is asking"""
-    # If they've done all required documents but one, remove the id from
-    #   the userDict and send the last document
     user_id = flask.request.headers.get('uuid')
     doc_number = 0
     document = ''
     completed = 0
-
-    # Update the user_dict (unless this was the last document and the user_id
-    #   was removed above)
+    # Update the user_dict
     with lock:
         if user_id in user_dict:
-            global doc_order_index
-            doc_number = doc_order[doc_order_index]
-            doc_order_index += 1
-            document = filedict[doc_number]
-            user_dict[user_id]['num_docs'] = user_dict[user_id]['num_docs'] + 1
             completed = user_dict[user_id]['num_docs']
-            user_dict[user_id]['doc_number'] = doc_number
+            if completed < REQUIRED_DOCS:
+                doc_number = doc_order[user_dict[user_id]['doc_index']]
+                document = filedict[doc_number]
+                user_dict[user_id]['doc_index'] += 1
+                user_dict[user_id]['num_docs'] += 1
+                user_dict[user_id]['doc_number'] = doc_number
+            else:
+                del user_dict[user_id]
     # Save state (in case the server crashes)
     save_state()
     # Return the document
@@ -86,14 +94,20 @@ def get_old_doc():
     """Gets the old document for someone if they have one,
         if they refreshed the page for instance"""
     # Create needed variables
-    doc_number = 0
     user_id = flask.request.headers.get('uuid')
+    doc_number = 0
+    completed = 0
     # Get info from the user_dict to use to get the old document
     with lock:
         if user_id in user_dict:
             doc_number = user_dict[user_id]['doc_number']
-    # Return the document and doc_index to the client
-    return flask.jsonify(document=filedict[doc_number], doc_number=doc_number)
+            # num_docs tells how many different documents have been served, so
+            # going back for an old document means one less has been completed
+            completed = user_dict[user_id]['num_docs'] - 1
+    # Return the document and doc_number to the client
+    return flask.jsonify(
+        document=filedict[doc_number], doc_number=doc_number,
+        completed=completed)
 
 @app.route('/')
 def serve_landing_page():
@@ -115,6 +129,12 @@ def serve_ui_js():
 @app.route('/end.html')
 def serve_end_page():
     """Serves the end page for the Active TM UI"""
+    user_id = flask.request.headers.get('uuid')
+    with lock:
+        if user_id in user_dict:
+            print(user_id+'navigated to end.html')
+            del user_dict[user_id]
+            save_state()
     return flask.send_from_directory('static', 'end.html')
 
 
@@ -141,8 +161,9 @@ def get_uid():
     """Sends a UUID to the client"""
     uid = uuid.uuid4()
     data = {'id': uid}
+    doc_index = rng.randint(0, len(filedict)-REQUIRED_DOCS)
     with lock:
-        user_dict[str(uid)] = {'num_docs':0, 'doc_index':0}
+        user_dict[str(uid)] = {'num_docs':0, 'doc_index':doc_index}
     print(user_dict)
     return flask.jsonify(data)
 
@@ -163,3 +184,4 @@ if __name__ == '__main__':
     app.run(debug=True,
             host='0.0.0.0',
             port=3000)
+

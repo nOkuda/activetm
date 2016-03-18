@@ -162,7 +162,7 @@ $( document ).ready(function() {
       url: '/old_doc',
       headers: {'uuid': Cookies.get('user_study_uuid')},
       success: function(data) {
-        $("#progress").text("Progress:  "+data["completed"]+"/200")
+        $("#progress").text("Completed:  "+data["completed"])
         $('#document').text(data['document']);
         docnumber = data["doc_number"];
       }
