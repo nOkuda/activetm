@@ -8,7 +8,7 @@ import pickle
 import random
 
 
-app = flask.Flask(__name__, static_url_path='')
+APP = flask.Flask(__name__, static_url_path='')
 # users must label REQUIRED_DOCS documents
 REQUIRED_DOCS = 10
 ORDER_PICKLE = 'order.pickle'
@@ -24,12 +24,12 @@ def get_user_dict_on_start():
         state = pickle.load(last_state)
         print("Last state: " + str(state))
         last_state.close()
-        return state['user_dict']
+        return state['USER_DICT']
     # but if the server is starting fresh, so does the user data
     return {}
 
 def get_filedict():
-    """Loads filedict"""
+    """Loads FILEDICT"""
     with open('filedict.pickle', 'rb') as ifh:
         return pickle.load(ifh)
 
@@ -44,52 +44,39 @@ def get_doc_order():
     return result
 
 ################################################################################
-# Everything in this block needs to be run at server startup
-# user_dict holds information on users
-user_dict = get_user_dict_on_start()
-lock = threading.Lock()
-rng = random.Random()
-# filedict is a docnumber to document dictionary
-filedict = get_filedict()
-doc_order = get_doc_order()
+# Everything in this bLOCK needs to be run at server startup
+# USER_DICT holds information on users
+USER_DICT = get_user_dict_on_start()
+LOCK = threading.Lock()
+RNG = random.Random()
+# FILEDICT is a docnumber to document dictionary
+FILEDICT = get_filedict()
+DOC_ORDER = get_doc_order()
 ################################################################################
 
 
 def save_state():
     """Saves the state of the server to a pickle file"""
     last_state = {}
-    global user_dict
-    last_state['user_dict'] = user_dict
-    print(user_dict)
+    last_state['USER_DICT'] = USER_DICT
+    print(USER_DICT)
     pickle.dump(last_state, open('last_state.pickle', 'wb'))
 
-@app.route('/get_doc')
+@APP.route('/get_doc')
 def get_doc():
     """Gets the next document for whoever is asking"""
     user_id = flask.request.headers.get('uuid')
     doc_number = 0
     document = ''
-    completed = 0
-    # Update the user_dict
-    with lock:
-        if user_id in user_dict:
-            completed = user_dict[user_id]['num_docs']
-            if completed < REQUIRED_DOCS:
-                doc_number = doc_order[user_dict[user_id]['doc_index']]
-                document = filedict[doc_number]
-                user_dict[user_id]['doc_index'] += 1
-                user_dict[user_id]['num_docs'] += 1
-                user_dict[user_id]['doc_number'] = doc_number
-            else:
-                del user_dict[user_id]
-    # Save state (in case the server crashes)
-    save_state()
+    if user_id in USER_DICT:
+        completed = USER_DICT[user_id]['num_docs']
+        if completed < REQUIRED_DOCS:
+            doc_number = DOC_ORDER[USER_DICT[user_id]['doc_index']]
+            document = FILEDICT[doc_number]['text']
     # Return the document
-    return flask.jsonify(
-        document=document, doc_number=doc_number, completed=completed)
+    return flask.jsonify(document=document, doc_number=doc_number)
 
-
-@app.route('/old_doc')
+@APP.route('/old_doc')
 def get_old_doc():
     """Gets the old document for someone if they have one,
         if they refreshed the page for instance"""
@@ -97,91 +84,118 @@ def get_old_doc():
     user_id = flask.request.headers.get('uuid')
     doc_number = 0
     completed = 0
-    # Get info from the user_dict to use to get the old document
-    with lock:
-        if user_id in user_dict:
-            doc_number = user_dict[user_id]['doc_number']
-            # num_docs tells how many different documents have been served, so
-            # going back for an old document means one less has been completed
-            completed = user_dict[user_id]['num_docs'] - 1
+    correct = 0
+    # Get info from the USER_DICT to use to get the old document
+    if user_id in USER_DICT:
+        doc_number = USER_DICT[user_id]['doc_number']
+        completed = USER_DICT[user_id]['num_docs']
+        correct = USER_DICT[user_id]['correct']
     # Return the document and doc_number to the client
     return flask.jsonify(
-        document=filedict[doc_number], doc_number=doc_number,
-        completed=completed)
+        document=FILEDICT[doc_number]['text'], doc_number=doc_number,
+        completed=completed, correct=correct)
 
-@app.route('/')
+@APP.route('/')
 def serve_landing_page():
     """Serves the landing page for the Active Topic Modeling UI"""
     return flask.send_from_directory('static', 'index.html')
 
-@app.route('/docs.html')
+@APP.route('/docs.html')
 def serve_ui():
     """Serves the Active Topic Modeling UI"""
     return flask.send_from_directory('static', 'docs.html')
 
-
-@app.route('/scripts/script.js')
+@APP.route('/scripts/script.js')
 def serve_ui_js():
     """Serves the Javascript for the Active TM UI"""
     return flask.send_from_directory('static/scripts', 'script.js')
 
-
-@app.route('/end.html')
+@APP.route('/end.html')
 def serve_end_page():
     """Serves the end page for the Active TM UI"""
-    user_id = flask.request.headers.get('uuid')
-    with lock:
-        if user_id in user_dict:
-            print(user_id+'navigated to end.html')
-            del user_dict[user_id]
-            save_state()
     return flask.send_from_directory('static', 'end.html')
 
+@APP.route('/finalize')
+def finalize():
+    """Serves final statistics for the given user and erases the user from the
+    database"""
+    user_id = flask.request.headers.get('uuid')
+    correct = 0
+    complete = 0
+    with LOCK:
+        if user_id in USER_DICT:
+            correct = USER_DICT[user_id]['correct']
+            complete = USER_DICT[user_id]['num_docs']
+            del USER_DICT[user_id]
+            save_state()
+    return flask.jsonify(correct=correct, complete=complete)
 
-@app.route('/scripts/end.js')
+@APP.route('/scripts/end.js')
 def serve_end_js():
     """Serves the Javascript for the end page for the Active TM UI"""
     return flask.send_from_directory('static/scripts', 'end.js')
 
-
-@app.route('/scripts/js.cookie.js')
+@APP.route('/scripts/js.cookie.js')
 def serve_cookie_script():
     """Serves the Javascript cookie script"""
     return flask.send_from_directory('static/scripts', 'js.cookie.js')
 
-
-@app.route('/stylesheets/style.css')
+@APP.route('/stylesheets/style.css')
 def serve_ui_css():
     """Serves the CSS file for the Active TM UI"""
     return flask.send_from_directory('static/stylesheets', 'style.css')
 
-
-@app.route('/uuid')
+@APP.route('/uuid')
 def get_uid():
     """Sends a UUID to the client"""
     uid = uuid.uuid4()
     data = {'id': uid}
-    doc_index = rng.randint(0, len(filedict)-REQUIRED_DOCS)
-    with lock:
-        user_dict[str(uid)] = {'num_docs':0, 'doc_index':doc_index}
-    print(user_dict)
+    doc_index = RNG.randint(0, len(FILEDICT)-REQUIRED_DOCS)
+    with LOCK:
+        USER_DICT[str(uid)] = {
+            'num_docs': 0,
+            'doc_index': doc_index,
+            'doc_number': DOC_ORDER[doc_index],
+            'correct': 0}
+    print(USER_DICT)
     return flask.jsonify(data)
 
-@app.route('/rated', methods=['POST'])
+@APP.route('/rated', methods=['POST'])
 def get_rating():
     """Receives and saves a user rating to a specific user's file"""
     flask.request.get_data()
     input_json = flask.request.get_json(force=True)
     user_data_dir = os.path.dirname(os.path.realpath(__file__)) + "/userData"
+    user_id = input_json['uid']
+    guess = input_json['rating']
     if not os.path.exists(user_data_dir):
         os.makedirs(user_data_dir)
-    file_to_open = user_data_dir+"/"+input_json['uid']+".data"
+    file_to_open = user_data_dir+"/"+user_id+".data"
     with open(file_to_open, 'a') as user_file:
-        user_file.write(str(input_json['start_time']) + "\t" + str(input_json['end_time']) + "\t" + str(input_json['doc_number']) + "\t" + str(input_json['rating']) + "\n")
-    return 'OK'
+        user_file.write(
+            str(input_json['start_time']) + "\t" + str(input_json['end_time']) +
+            "\t" + str(input_json['doc_number']) + "\t" + str(guess) + "\n")
+    prevlabel = FILEDICT[USER_DICT[user_id]['doc_number']]['label']
+    correct = USER_DICT[user_id]['correct']
+    completed = 0
+    with LOCK:
+        if user_id in USER_DICT:
+            if guess == prevlabel:
+                USER_DICT[user_id]['correct'] += 1
+                correct = USER_DICT[user_id]['correct']
+            USER_DICT[user_id]['num_docs'] += 1
+            completed = USER_DICT[user_id]['num_docs']
+            if completed < REQUIRED_DOCS:
+                doc_number = DOC_ORDER[USER_DICT[user_id]['doc_index']]
+                USER_DICT[user_id]['doc_index'] += 1
+                USER_DICT[user_id]['doc_number'] = doc_number
+    # Save state (in case the server crashes)
+    save_state()
+    return flask.jsonify(
+        label=prevlabel, completed=completed, correct=correct)
 
 if __name__ == '__main__':
-    app.run(debug=True,
+    APP.run(debug=True,
             host='0.0.0.0',
             port=3000)
 

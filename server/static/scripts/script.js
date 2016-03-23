@@ -108,30 +108,53 @@ $(function() {
 });
 
 $( document ).ready(function() {
-  //Set up global variable (terrible, I know)
+  //Set up global variables (terrible, I know)
   var docnumber;
   var d = new Date();
   var starttime = d.getTime();
+  var alreadyguessed = false
 
-  //Send data when a star rating is given and then get a new document
+  //Send data when a star rating is given and then show feedback
   $('#stars').on('starrr:change', function(e, value){
-    d = new Date();
-    var endtime = d.getTime();
-    //Send the data over to the server when the user gives a rating
-    $.ajax({
-      type: 'POST',
-      url: "/rated",
-      data: JSON.stringify({
-        "rating": value,
-        "start_time": starttime,
-        "end_time": endtime,
-        "uid": Cookies.get('user_study_uuid'),
-        "doc_number": docnumber
-      }),
-      dataType: "json",
-      contentType: "application/json"
-    });
-    getDoc();
+    if (!alreadyguessed) {
+      alreadyguessed = true
+      d = new Date();
+      var endtime = d.getTime();
+      var guess = value;
+      //Send the data over to the server when the user gives a rating
+      $.ajax({
+        type: 'POST',
+        url: "/rated",
+        data: JSON.stringify({
+          "rating": value,
+          "start_time": starttime,
+          "end_time": endtime,
+          "uid": Cookies.get('user_study_uuid'),
+          "doc_number": docnumber
+        }),
+        dataType: "json",
+        contentType: "application/json",
+        success: function(data) {
+          var message = "<button id=continueButton class=\"btn btn-default\">";
+          message += "Continue</button>";
+          if (guess === data["label"]) {
+            message += "<p>You were correct.</p>";
+          } else {
+            message += "<p>You were incorrect.</p>";
+          }
+          message += "<p>Your guess: "+guess+"</p>";
+          message += "<p>Correct answer: "+data["label"]+"</p>";
+          $("#correct").text(data["correct"]);
+          $("#progress").text(data["completed"]);
+          $("#feedback").html(message);
+          $("#continueButton").click(function() {
+            alreadyguessed = false
+            getDoc();
+            $("#feedback").html("");
+          })
+        }
+      });
+    }
   });
 
   //Function that gets documents
@@ -146,7 +169,6 @@ $( document ).ready(function() {
           location.href = '/end.html';
           return false;
         }
-        $("#progress").text("Completed:  "+data["completed"])
         $("#document").text(data["document"]);
         docnumber = data["doc_number"];
         d = new Date();
@@ -162,7 +184,8 @@ $( document ).ready(function() {
       url: '/old_doc',
       headers: {'uuid': Cookies.get('user_study_uuid')},
       success: function(data) {
-        $("#progress").text("Completed:  "+data["completed"])
+        $("#correct").text(data["correct"]);
+        $("#progress").text(data["completed"]);
         $('#document').text(data['document']);
         docnumber = data["doc_number"];
       }
