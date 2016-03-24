@@ -68,11 +68,13 @@ def get_doc():
     user_id = flask.request.headers.get('uuid')
     doc_number = 0
     document = ''
-    if user_id in USER_DICT:
-        completed = USER_DICT[user_id]['num_docs']
-        if completed < REQUIRED_DOCS:
-            doc_number = DOC_ORDER[USER_DICT[user_id]['doc_index']]
-            document = FILEDICT[doc_number]['text']
+    with LOCK:
+        if user_id in USER_DICT:
+            completed = USER_DICT[user_id]['num_docs']
+            if completed < REQUIRED_DOCS:
+                doc_number = DOC_ORDER[
+                    USER_DICT[user_id]['start_doc_index'] + completed]
+                document = FILEDICT[doc_number]['text']
     # Return the document
     return flask.jsonify(document=document, doc_number=doc_number)
 
@@ -85,15 +87,19 @@ def get_old_doc():
     doc_number = 0
     completed = 0
     correct = 0
+    document = ''
     # Get info from the USER_DICT to use to get the old document
     if user_id in USER_DICT:
-        doc_number = USER_DICT[user_id]['doc_number']
         completed = USER_DICT[user_id]['num_docs']
-        correct = USER_DICT[user_id]['correct']
+        if completed < REQUIRED_DOCS:
+            doc_number = USER_DICT[user_id]['doc_number']
+            document = FILEDICT[doc_number]['text']
+            completed = USER_DICT[user_id]['num_docs']
+            correct = USER_DICT[user_id]['correct']
     # Return the document and doc_number to the client
     return flask.jsonify(
-        document=FILEDICT[doc_number]['text'], doc_number=doc_number,
-        completed=completed, correct=correct)
+        document=document, doc_number=doc_number, completed=completed,
+        correct=correct)
 
 @APP.route('/')
 def serve_landing_page():
@@ -150,14 +156,13 @@ def get_uid():
     """Sends a UUID to the client"""
     uid = uuid.uuid4()
     data = {'id': uid}
-    doc_index = RNG.randint(0, len(FILEDICT)-REQUIRED_DOCS)
+    start_doc_index = RNG.randint(0, len(FILEDICT)-REQUIRED_DOCS)
     with LOCK:
         USER_DICT[str(uid)] = {
             'num_docs': 0,
-            'doc_index': doc_index,
-            'doc_number': DOC_ORDER[doc_index],
+            'start_doc_index': start_doc_index,
+            'doc_number': DOC_ORDER[start_doc_index],
             'correct': 0}
-    print(USER_DICT)
     return flask.jsonify(data)
 
 @APP.route('/rated', methods=['POST'])
@@ -167,6 +172,7 @@ def get_rating():
     input_json = flask.request.get_json(force=True)
     user_data_dir = os.path.dirname(os.path.realpath(__file__)) + "/userData"
     user_id = input_json['uid']
+    doc_number = input_json['doc_number']
     guess = input_json['rating']
     if not os.path.exists(user_data_dir):
         os.makedirs(user_data_dir)
@@ -174,8 +180,8 @@ def get_rating():
     with open(file_to_open, 'a') as user_file:
         user_file.write(
             str(input_json['start_time']) + "\t" + str(input_json['end_time']) +
-            "\t" + str(input_json['doc_number']) + "\t" + str(guess) + "\n")
-    prevlabel = FILEDICT[USER_DICT[user_id]['doc_number']]['label']
+            "\t" + str(doc_number) + "\t" + str(guess) + "\n")
+    prevlabel = FILEDICT[doc_number]['label']
     correct = USER_DICT[user_id]['correct']
     completed = 0
     with LOCK:
@@ -186,9 +192,10 @@ def get_rating():
             USER_DICT[user_id]['num_docs'] += 1
             completed = USER_DICT[user_id]['num_docs']
             if completed < REQUIRED_DOCS:
-                doc_number = DOC_ORDER[USER_DICT[user_id]['doc_index']]
-                USER_DICT[user_id]['doc_index'] += 1
-                USER_DICT[user_id]['doc_number'] = doc_number
+                next_doc_number = DOC_ORDER[
+                    USER_DICT[user_id]['start_doc_index'] + completed]
+                # advance index for next time
+                USER_DICT[user_id]['doc_number'] = next_doc_number
     # Save state (in case the server crashes)
     save_state()
     return flask.jsonify(

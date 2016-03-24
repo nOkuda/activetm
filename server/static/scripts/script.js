@@ -187,6 +187,10 @@ $( document ).ready(function() {
       url: '/old_doc',
       headers: {'uuid': Cookies.get('user_study_uuid')},
       success: function(data) {
+        if (data['doc_number'] === 0) {
+          location.href = '/end.html';
+          return false;
+        }
         $("#correct").text(data["correct"]);
         $("#progress").text(data["completed"]);
         $('#document').text(data['document']);
