@@ -135,6 +135,8 @@ $( document ).ready(function() {
         dataType: "json",
         contentType: "application/json",
         success: function(data) {
+          //Hide stars when showing feedback
+          $("#stars").hide();
           var message = "<button id=continueButton class=\"btn btn-default\">";
           message += "Continue</button>";
           if (guess === data["label"]) {
@@ -151,6 +153,7 @@ $( document ).ready(function() {
             alreadyguessed = false
             getDoc();
             $("#feedback").html("");
+            $("#stars").show();
           })
         }
       });
