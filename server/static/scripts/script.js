@@ -140,9 +140,9 @@ $( document ).ready(function() {
           var message = "<button id=continueButton class=\"btn btn-default\">";
           message += "Continue</button>";
           if (guess === data["label"]) {
-            message += "<p>You were correct.</p>";
+            message += "<p>You were <span class='correct'>correct</span>.</p>";
           } else {
-            message += "<p>You were incorrect.</p>";
+            message += "<p>You were <span class='incorrect'>incorrect</span>.</p>";
           }
           message += "<p>Your guess: "+guess+"</p>";
           message += "<p>Correct answer: "+data["label"]+"</p>";

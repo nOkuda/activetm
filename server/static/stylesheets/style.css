@@ -12,6 +12,16 @@
   color: rgb(140, 140, 10);
 }
 
+.correct {
+	color: green;
+	font-weight: bold;
+}
+
+.incorrect {
+	color: red;
+	font-weight: bold;
+}
+
 #stars {
   margin-top: 10px;
   display: inline-block;
