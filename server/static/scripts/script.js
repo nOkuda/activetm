@@ -137,15 +137,19 @@ $( document ).ready(function() {
         success: function(data) {
           //Hide stars when showing feedback
           $("#stars").hide();
-          var message = "<button id=continueButton class=\"btn btn-default\">";
+          var message = "<button id=continueButton class=\"btn btn-primary\">";
           message += "Continue</button>";
           if (guess === data["label"]) {
             message += "<p>You were <span class='correct'>correct</span>.</p>";
           } else {
             message += "<p>You were <span class='incorrect'>incorrect</span>.</p>";
           }
-          message += "<p>Your guess: "+guess+"</p>";
-          message += "<p>Correct answer: "+data["label"]+"</p>";
+          message += "<div class='row'>";
+          message += "<div class='col-sm-4'></div>";
+          message += "<p class='col-sm-2'>Your guess: "+guess+"</p>";
+          message += "<p class='col-sm-2'>Correct answer: "+data["label"]+"</p>";
+          message += "<div class='col-sm-4'></div>";
+          message += "</div>";
           $("#correct").text(data["correct"]);
           $("#progress").text(data["completed"]);
           $("#feedback").html(message);

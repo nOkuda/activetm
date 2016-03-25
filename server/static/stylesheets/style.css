@@ -3,13 +3,14 @@
 }
 
 .glyphicon-star {
-  font-size: 40px;
-  color: rgb(140, 140, 10);
+    font-size: 40px;
+    color: gold;
+    text-shadow: 0 0 3px #c9c91d;
 }
 
 .glyphicon-star-empty {
   font-size: 40px;
-  color: rgb(140, 140, 10);
+  color: rgb(163, 163, 163);
 }
 
 .correct {
@@ -20,6 +21,11 @@
 .incorrect {
 	color: red;
 	font-weight: bold;
+}
+
+.progress {
+    text-align: center;
+    float: left;
 }
 
 #stars {
