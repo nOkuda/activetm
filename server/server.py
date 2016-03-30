@@ -10,7 +10,7 @@ import random
 
 APP = flask.Flask(__name__, static_url_path='')
 # users must label REQUIRED_DOCS documents
-REQUIRED_DOCS = 10
+REQUIRED_DOCS = 100
 ORDER_PICKLE = 'order.pickle'
 
 def get_user_dict_on_start():
