@@ -163,6 +163,7 @@ def get_uid():
             'start_doc_index': start_doc_index,
             'doc_number': DOC_ORDER[start_doc_index],
             'correct': 0}
+    save_state()
     return flask.jsonify(data)
 
 @APP.route('/rated', methods=['POST'])
