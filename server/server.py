@@ -7,11 +7,11 @@ import threading
 import pickle
 import random
 
-
 APP = flask.Flask(__name__, static_url_path='')
 # users must label REQUIRED_DOCS documents
 REQUIRED_DOCS = 100
 ORDER_PICKLE = 'order.pickle'
+
 
 def get_user_dict_on_start():
     """Loads user data"""
@@ -28,10 +28,12 @@ def get_user_dict_on_start():
     # but if the server is starting fresh, so does the user data
     return {}
 
+
 def get_filedict():
     """Loads FILEDICT"""
     with open('filedict.pickle', 'rb') as ifh:
         return pickle.load(ifh)
+
 
 def get_doc_order():
     """Loads document order"""
@@ -42,6 +44,7 @@ def get_doc_order():
     for tup in data:
         result.append(tup[0])
     return result
+
 
 ################################################################################
 # Everything in this bLOCK needs to be run at server startup
@@ -62,6 +65,7 @@ def save_state():
     print(USER_DICT)
     pickle.dump(last_state, open('last_state.pickle', 'wb'))
 
+
 @APP.route('/get_doc')
 def get_doc():
     """Gets the next document for whoever is asking"""
@@ -77,6 +81,7 @@ def get_doc():
                 document = FILEDICT[doc_number]['text']
     # Return the document
     return flask.jsonify(document=document, doc_number=doc_number)
+
 
 @APP.route('/old_doc')
 def get_old_doc():
@@ -101,30 +106,36 @@ def get_old_doc():
         document=document, doc_number=doc_number, completed=completed,
         correct=correct)
 
+
 @APP.route('/')
 def serve_landing_page():
     """Serves the landing page for the Active Topic Modeling UI"""
     return flask.send_from_directory('static', 'index.html')
+
 
 @APP.route('/docs.html')
 def serve_ui():
     """Serves the Active Topic Modeling UI"""
     return flask.send_from_directory('static', 'docs.html')
 
+
 @APP.route('/scripts/script.js')
 def serve_ui_js():
     """Serves the Javascript for the Active TM UI"""
     return flask.send_from_directory('static/scripts', 'script.js')
+
 
 @APP.route('/end.html')
 def serve_end_page():
     """Serves the end page for the Active TM UI"""
     return flask.send_from_directory('static', 'end.html')
 
+
 @APP.route('/finalize')
 def finalize():
-    """Serves final statistics for the given user and erases the user from the
-    database"""
+    """Serves final statistics for the given user 
+    and erases the user from the database
+    """
     user_id = flask.request.headers.get('uuid')
     correct = 0
     complete = 0
@@ -136,20 +147,24 @@ def finalize():
             save_state()
     return flask.jsonify(correct=correct, complete=complete)
 
+
 @APP.route('/scripts/end.js')
 def serve_end_js():
     """Serves the Javascript for the end page for the Active TM UI"""
     return flask.send_from_directory('static/scripts', 'end.js')
+
 
 @APP.route('/scripts/js.cookie.js')
 def serve_cookie_script():
     """Serves the Javascript cookie script"""
     return flask.send_from_directory('static/scripts', 'js.cookie.js')
 
+
 @APP.route('/stylesheets/style.css')
 def serve_ui_css():
     """Serves the CSS file for the Active TM UI"""
     return flask.send_from_directory('static/stylesheets', 'style.css')
+
 
 @APP.route('/uuid')
 def get_uid():
@@ -165,6 +180,7 @@ def get_uid():
             'correct': 0}
     save_state()
     return flask.jsonify(data)
+
 
 @APP.route('/rated', methods=['POST'])
 def get_rating():
@@ -202,8 +218,8 @@ def get_rating():
     return flask.jsonify(
         label=prevlabel, completed=completed, correct=correct)
 
+
 if __name__ == '__main__':
     APP.run(debug=True,
             host='0.0.0.0',
             port=3000)
-
