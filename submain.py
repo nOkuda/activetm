@@ -26,35 +26,44 @@ def partition_data_ids(num_docs, rng, settings):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Job runner for ActiveTM '
             'experiments')
-    parser.add_argument('working_dir', help='ActiveTM directory '
-            'available to hosts (should be a network path)')
     parser.add_argument('settings', help=\
             '''the path to a file containing settings, as described in \
             README.md in the root ActiveTM directory''')
     parser.add_argument('outputdir', help='directory for output')
     parser.add_argument('label', help='identifying label')
+    parser.add_argument('seed', default=-1, type=int, nargs='?')
     args = parser.parse_args()
+    # print('Parsed arguments')
 
     settings = utils.parse_settings(args.settings)
+    # print('Parsed settings')
     trueoutputdir = os.path.join(args.outputdir, settings['group'])
     if not os.path.exists(trueoutputdir):
         try:
             os.makedirs(trueoutputdir)
         except OSError:
             pass
+    # print('Ensured true output directory exists')
     filename = socket.gethostname()+'.'+str(os.getpid())
     runningfile = os.path.join(args.outputdir, 'running',
             filename)
     try:
         with open(runningfile, 'w') as outputfh:
             outputfh.write('running')
+        # print('Created running mark')
 
         start = time.time()
         input_pickle = os.path.join(args.outputdir, utils.get_pickle_name(args.settings))
         with open(input_pickle, 'rb') as ifh:
             dataset = pickle.load(ifh)
-        rng = random.Random(int(settings['seed']))
+        # print('Got pickle')
+        if args.seed == -1:
+            rng = random.Random(int(settings['seed']))
+        else:
+            rng = random.Random(args.seed)
+        # print('Set random seed: ', args.seed)
         model = models.build(rng, settings)
+        # print('Built model')
         test_doc_ids, labeled_doc_ids, unlabeled_doc_ids =\
                 partition_data_ids(dataset.num_docs, rng, settings)
         test_labels = []
@@ -66,6 +75,7 @@ if __name__ == '__main__':
         known_labels = []
         for t in labeled_doc_ids:
             known_labels.append(dataset.labels[dataset.titles[t]])
+        # print('Set up initial sets')
 
         SELECT_METHOD = select.factory[settings['select']]
         END_LABELED = int(settings['endlabeled'])
@@ -78,6 +88,7 @@ if __name__ == '__main__':
         start = time.time()
         select_and_train_start = time.time()
         model.train(dataset, labeled_doc_ids, known_labels)
+        # print('Trained model')
         select_and_train_end = time.time()
         metric = evaluate.pR2(model, test_words, test_labels,
                 test_labels_mean)
