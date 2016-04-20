@@ -87,8 +87,9 @@ class SupervisedAnchor(abstract.AbstractModel):
             return self.rng.random()
         for i in range(self.numtrain):
             X = self._predict_topics(i, docws)
-            guess = self.predictors[i].predict(X)
-            # guess = np.dot(self.weightses[i], X)
+            # make sure that sklearn knows this is only one example with
+            # multiple features, not multiple examples with one feature each
+            guess = self.predictors[i].predict(X.reshape(1,-1))
             resultsList.append(guess)
         return np.mean(resultsList)
 

@@ -215,15 +215,18 @@ def make_plots(outputdir, dirs):
                 get_stats(select_and_train_mat)
         select_and_train_plot.plot(counts, sandt_means, d, sandt_medians,
                 [sandt_errs_minus, sandt_errs_plus])
+    corpus = os.path.basename(outputdir)
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
-    count_plot.savefig('counts.pdf')
+    count_plot.savefig(os.path.join(outputdir, corpus+'.counts.pdf'))
     time_plot.set_xlabel('Time elapsed (seconds)')
     time_plot.set_ylabel('pR$^2$')
-    time_plot.savefig('times.pdf')
+    time_plot.savefig(os.path.join(outputdir,
+        corpus+'.times.pdf'))
     select_and_train_plot.set_xlabel('Number of Labeled Documents')
     select_and_train_plot.set_ylabel('Time to select and train')
-    select_and_train_plot.savefig('select_and_train.pdf')
+    select_and_train_plot.savefig(os.path.join(outputdir,
+        corpus+'.select_and_train.pdf'))
 
 def send_notification(email, outdir, run_time):
     msg = MIMEText('Run time: '+str(run_time))
