@@ -136,9 +136,10 @@ Gibbs sampling to perform inference.
 * `predictlag` takes an integer value specifying the number of states to sample
   between saved states for prediction.
 
-#### Settings for `sup_anchor`
+#### Settings for `ridge_anchor` and `gp_anchor`
 
-This model is an implementation of supervised anchor words.
+These are implementations of supervised anchor words.  Whereas `ridge_anchor`
+uses regression, `gp_anchor` uses Gaussian process regression.
 
 * `numtopics` takes an integer value specifying the number of topics the model
   considers.
