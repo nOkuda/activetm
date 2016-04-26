@@ -1,24 +1,36 @@
+"""A supervised anchor words implementation for regression"""
+
+from .gaussian_process.gpr import GaussianProcessRegressor
+from .gaussian_process.kernels import DotProduct
+from sklearn.linear_model import Ridge
 import ankura
 import heapq
 import numpy as np
-from sklearn.linear_model import Ridge
 
 from . import abstract
+from .. import labeled
 from .sampler import ctypesutils
 from .sampler import slda
-from .. import labeled
+
 
 class SupervisedAnchor(abstract.AbstractModel):
-    ''''SupervisedAnchor requires the following parameters:
-        * numtopics
-            the number of topics to look for
-        * numtrain
-            the number of learners to train
-    '''
-    def __init__(self, rng, numtopics, numtrain):
+    """Parent class for other supervised anchor words implementations"""
+
+    def __init__(self, rng, numtopics, numtrain, regressor):
+        """SupervisedAnchor requires the following parameters:
+            * rng :: random.Random
+                a random number generator
+            * numtopics :: int
+                the number of topics to look for
+            * numtrain :: int
+                the number of models to train (for query by committee)
+            * regressor
+                factory for sklearn-style learner trained as regression model
+        """
         self.rng = rng
         self.numtopics = numtopics
         self.numtrain = numtrain
+        self.regressor = regressor
         self.numsamplesperpredictchain = 5
         # other instance variables initialized in train:
         #   self.corpus_to_train_vocab
@@ -27,14 +39,26 @@ class SupervisedAnchor(abstract.AbstractModel):
         #   self.weightses
         #   self.samplers
 
-    def train(self, dataset, trainingdoc_ids, knownresp,
-            continue_training=False):
-        # trainingdoc_ids must be a list
-        # knownresp must be a list such that its values correspond with trainingdoc_ids
-        tmp = ankura.pipeline.Dataset(
-                dataset.docwords[:,trainingdoc_ids],
-                dataset.vocab,
-                [dataset.titles[t] for t in trainingdoc_ids])
+    def train(self,
+              dataset,
+              trainingdoc_ids,
+              knownresp,
+              continue_training=False):
+        """training algorithm for supervised anchor words
+
+            * dataset :: activetm.labeled.LabeledDataset
+                the complete corpus used for the experiments
+            * trainingdoc_ids :: [int]
+                the documents in the corpus identified by title order in dataset
+            * knownresp :: [float]
+                true labels corresponding to documents identified by
+                trainingdoc_ids
+            * continue_training :: bool
+                are we picking up from parameters trained earlier?
+        """
+        tmp = ankura.pipeline.Dataset(dataset.docwords[:, trainingdoc_ids],
+                                      dataset.vocab,
+                                      [dataset.titles[t] for t in trainingdoc_ids])
         self.corpus_to_train_vocab = [-1] * len(dataset.vocab)
         counter = 0
         for i in range(len(dataset.vocab)):
@@ -56,20 +80,25 @@ class SupervisedAnchor(abstract.AbstractModel):
         self.predictors = []
         # print 'Training set size:', trainingset.M.sum()
         for _ in range(self.numtrain):
-            anchors = ankura.anchor.gramschmidt_anchors(trainingset,
-                    self.numtopics, 0.1 * len(trainingset.titles),
-                    project_dim=1000 if trainingset.vocab_size > 1000 else trainingset.vocab_size)
-            topics = ankura.topic.recover_topics(trainingset, anchors,
-                    self._get_epsilon(trainingset.num_docs))
+            pdim = 1000 if trainingset.vocab_size > 1000 else trainingset.vocab_size
+            anchors = \
+                ankura.anchor.gramschmidt_anchors(trainingset,
+                                                  self.numtopics,
+                                                  0.1 * len(trainingset.titles),
+                                                  project_dim=pdim)
+            topics = ankura.topic.recover_topics(trainingset,
+                                                 anchors,
+                                                 self._get_epsilon(trainingset.num_docs))
             self.topicses.append(topics)
             X = np.zeros((len(trainingset.titles), self.numtopics))
             for d in range(len(trainingset.titles)):
-                topic_counts, zs = ankura.topic.predict_topics(
-                    topics, trainingset.doc_tokens(d), rng=self.rng)
+                topic_counts, zs = ankura.topic.predict_topics(topics,
+                                                               trainingset.doc_tokens(d),
+                                                               rng=self.rng)
                 X[d,:] = topic_counts / len(trainingset.doc_tokens(d))
-            ridge = Ridge()
-            ridge.fit(X, np.array(knownresp))
-            self.predictors.append(ridge)
+            predictor = self.regressor()
+            predictor.fit(X, np.array(knownresp))
+            self.predictors.append(predictor)
 
     def _get_epsilon(self, trainingsize):
         if trainingsize < 1e2:
@@ -149,4 +178,28 @@ class SupervisedAnchor(abstract.AbstractModel):
             (_, highestTopic, i) = heapq.heappop(pq)
             result[i,:] = self.get_topic_distribution(highestTopic, i, 0)
         return result
+
+
+class RidgeAnchor(SupervisedAnchor):
+    """Anchor words implementation using ridge regression"""
+
+    def __init__(self, rng, numtopics, numtrain):
+        """builds SupervisedAnchor to use ridge regression"""
+        super(RidgeAnchor, self).__init__(rng, numtopics, numtrain, Ridge)
+
+
+class GPAnchor(SupervisedAnchor):
+    """Anchor words implementation using Gaussian process"""
+
+    def __init__(self, rng, numtopics, numtrain):
+        """builds SupervisedAnchor to use Gaussian process"""
+        def build_gp():
+            return GaussianProcessRegressor(kernel=DotProduct())
+        super(GPAnchor, self).__init__(rng,
+                                       numtopics,
+                                       numtrain,
+                                       build_gp)
+        # TODO GaussianProcess cannot handle multiple instances with the same
+        # output; GaussianProcessRegressor will be able to handle it, but is not
+        # scheduled to release until sklearn 0.18 (who knows when that will be)
 
