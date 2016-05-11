@@ -192,6 +192,7 @@ def make_plots(outputdir, dirs):
     count_plot = plot.Plotter(colors)
     select_and_train_plot = plot.Plotter(colors)
     time_plot = plot.Plotter(colors)
+    ymax = float('-inf')
     for d in dirs:
         data = np.array(get_data(os.path.join(outputdir, d)))
         # for the first document, read off first dimension (the labeled set
@@ -201,6 +202,9 @@ def make_plots(outputdir, dirs):
         # experiment's pR^2 results in columns
         ys_mat = data[:,-1,:]
         ys_medians, ys_means, ys_errs_minus, ys_errs_plus = get_stats(ys_mat)
+        ys_errs_plus_max = max(ys_errs_plus + ys_means)
+        if ys_errs_plus_max > ymax:
+            ymax = ys_errs_plus_max
         # set up a 2D matrix with each experiment on its own row and each
         # experiment's time results in columns
         times_mat = data[:,1,:]
@@ -218,9 +222,11 @@ def make_plots(outputdir, dirs):
     corpus = os.path.basename(outputdir)
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
+    count_plot.set_ylim([-0.05, ymax])
     count_plot.savefig(os.path.join(outputdir, corpus+'.counts.pdf'))
     time_plot.set_xlabel('Time elapsed (seconds)')
     time_plot.set_ylabel('pR$^2$')
+    time_plot.set_ylim([-0.05, ymax])
     time_plot.savefig(os.path.join(outputdir,
         corpus+'.times.pdf'))
     select_and_train_plot.set_xlabel('Number of Labeled Documents')

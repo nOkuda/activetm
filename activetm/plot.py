@@ -52,6 +52,9 @@ class Plotter(object):
     def set_ylabel(self, label):
         self.axis.set_ylabel(label)
 
+    def set_ylim(self, lims):
+        self.axis.set_ylim(lims)
+
 if __name__ == '__main__':
     # example of how to use Plotter
     line_count = 4
