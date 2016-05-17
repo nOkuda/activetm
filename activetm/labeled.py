@@ -42,8 +42,8 @@ class LabeledDataset(ankura.pipeline.Dataset):
         ankura.pipeline.Dataset.__init__(self, dataset.docwords, dataset.vocab, dataset.titles)
         self.labels = labels
 
-    def _compute_cooccurrences(self):
-        ankura.pipeline.Dataset._compute_cooccurrences(self)
+    def compute_cooccurrences(self):
+        ankura.pipeline.Dataset.compute_cooccurrences(self)
         vanilla_Q = self._cooccurrences
         orig_height, orig_width = vanilla_Q.shape
         self._cooccurrences = np.zeros((orig_height, orig_width+2))

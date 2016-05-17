@@ -179,6 +179,9 @@ class SupervisedAnchor(abstract.AbstractModel):
             result[i,:] = self.get_topic_distribution(highestTopic, i, 0)
         return result
 
+    def get_uncertainty(self, doc):
+        return np.var([self.predict(doc) for _ in range(self.numsamplesperpredictchain)])
+
 
 class RidgeAnchor(SupervisedAnchor):
     """Anchor words implementation using ridge regression"""
@@ -199,7 +202,13 @@ class GPAnchor(SupervisedAnchor):
                                        numtopics,
                                        numtrain,
                                        build_gp)
-        # TODO GaussianProcess cannot handle multiple instances with the same
-        # output; GaussianProcessRegressor will be able to handle it, but is not
-        # scheduled to release until sklearn 0.18 (who knows when that will be)
+
+        def get_uncertainty(self, doc):
+            docws = self._convert_vocab_space(doc)
+            uncertainties = []
+            for i in range(self.numtrain):
+                uncertainties.append(
+                    self.predictors[i](
+                        self._predict_topics(i, docws), return_std=True)[1][0])
+            return np.mean(uncertainties)
 
