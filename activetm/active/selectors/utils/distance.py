@@ -1,29 +1,32 @@
+"""Functions for computing various distances
+
+All input is expected to be numpy arrays
+"""
+#pylint:disable=invalid-name
 import math
 
-def js_divergence(u, v):
-    m = (u + v) / 2.0
-    return (kl_divergence(u, m) / 2.0) + (kl_divergence(v, m) / 2.0)
+import numpy as np
+import scipy.stats
 
-epsilon = 1e-10
+
+def js_divergence(u, v):
+    """Get JS(u || v)"""
+    m = 0.5 * (u + v)
+    return 0.5 * (kl_divergence(u, m) + kl_divergence(v, m))
+
+
 def kl_divergence(u, v):
-    result = 0.0
-    for (p, q) in zip(u, v):
-        if abs(p) < epsilon:
-            # here, we define 0*log(0) = 0
-            continue
-        result += p * (math.log(p) - math.log(q))
-    return result
+    """Get KL(u || v)"""
+    return scipy.stats.entropy(u, v)
+
 
 def l1(u, v):
-    result = 0.0
-    for (p, q) in zip(u, v):
-        result += math.abs(p - q)
-    return result
+    """Get L1-distance between u and v"""
+    return np.abs(u - v).sum()
+
 
 def l2(u, v):
-    result = 0.0
-    for (p, q) in zip(u, v):
-        diff = p - q
-        result += diff * diff
-    return math.sqrt(result)
+    """Get L2-distance between u and v"""
+    diff = u - v
+    return math.sqrt(np.dot(diff, diff))
 

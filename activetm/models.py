@@ -1,35 +1,48 @@
+"""Factory for building models"""
 from .tech import anchor
 from .tech.sampler import slda
 
 
-factory = {
+FACTORY = {
     'slda': slda.SamplingSLDA,
     'ridge_anchor': anchor.RidgeAnchor,
-    'gp_anchor': anchor.GPAnchor
+    'gp_anchor': anchor.GPAnchor,
+    'semi_ridge_anchor': anchor.SemiRidgeAnchor,
+    'semi_gp_anchor': anchor.SemiGPAnchor
 }
 
 
 def build(rng, settings):
+    """Build a model according to the settings"""
     if settings['model'] == 'slda':
         slda.set_seed(int(settings['cseed']))
-        NUM_TOPICS = int(settings['numtopics'])
-        ALPHA = float(settings['alpha'])
-        BETA = float(settings['beta'])
-        VAR = float(settings['var'])
-        NUM_TRAIN = int(settings['numtrain'])
-        NUM_SAMPLES_TRAIN = int(settings['numsamplestrain'])
-        TRAIN_BURN = int(settings['trainburn'])
-        TRAIN_LAG = int(settings['trainlag'])
-        NUM_SAMPLES_PREDICT = int(settings['numsamplespredict'])
-        PREDICT_BURN = int(settings['predictburn'])
-        PREDICT_LAG = int(settings['predictlag'])
-        return factory['slda'](rng, NUM_TOPICS, ALPHA, BETA, VAR,
-                NUM_TRAIN, NUM_SAMPLES_TRAIN, TRAIN_BURN, TRAIN_LAG,
-                NUM_SAMPLES_PREDICT, PREDICT_BURN, PREDICT_LAG)
-    elif settings['model'] == 'ridge_anchor' or settings['model'] == 'gp_anchor':
-        NUM_TOPICS = int(settings['numtopics'])
-        NUM_TRAIN = int(settings['numtrain'])
-        return factory[settings['model']](rng, NUM_TOPICS, NUM_TRAIN)
+        num_topics = int(settings['numtopics'])
+        alpha = float(settings['alpha'])
+        beta = float(settings['beta'])
+        var = float(settings['var'])
+        num_train = int(settings['numtrain'])
+        num_samples_train = int(settings['numsamplestrain'])
+        train_burn = int(settings['trainburn'])
+        train_lag = int(settings['trainlag'])
+        num_samples_predict = int(settings['numsamplespredict'])
+        predict_burn = int(settings['predictburn'])
+        predict_lag = int(settings['predictlag'])
+        return FACTORY['slda'](rng,
+                               num_topics,
+                               alpha,
+                               beta,
+                               var,
+                               num_train,
+                               num_samples_train,
+                               train_burn,
+                               train_lag,
+                               num_samples_predict,
+                               predict_burn,
+                               predict_lag)
+    elif 'anchor' in settings['model'] and settings['model'] in FACTORY:
+        num_topics = int(settings['numtopics'])
+        num_train = int(settings['numtrain'])
+        return FACTORY[settings['model']](rng, num_topics, num_train)
     else:
         raise Exception('Unknown model "'+settings['model']+'"; aborting')
 

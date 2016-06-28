@@ -97,7 +97,7 @@ These settings are required for every run.
   `candsize` specifies how many documents become candidates to become part of
   the labeled set.
 * `model` takes a string value specifying the type of model to use for training.
-  The options are the keys of `models.models.factory`.
+  The options are the keys of `models.FACTORY`.
 
 ### Model Specific Settings
 
@@ -136,10 +136,13 @@ Gibbs sampling to perform inference.
 * `predictlag` takes an integer value specifying the number of states to sample
   between saved states for prediction.
 
-#### Settings for `ridge_anchor` and `gp_anchor`
+#### Settings for `*_anchor`
 
-These are implementations of supervised anchor words.  Whereas `ridge_anchor`
-uses regression, `gp_anchor` uses Gaussian process regression.
+These are implementations of anchor words.  Whereas `ridge_anchor`
+* `ridge_anchor` is supervised anchor words via ridge regression
+* `semi_ridge_anchor` is semisupervised anchor words via ridge regression
+* `gp_anchor` is supervised anchor words via Gaussian process regression
+* `semi_gp_anchor` is semisupervised anchor words via Gaussian process regression
 
 * `numtopics` takes an integer value specifying the number of topics the model
   considers.

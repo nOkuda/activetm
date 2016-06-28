@@ -1,10 +1,20 @@
+"""Abstract class for models"""
 class AbstractModel:
-    def train(self, trainingset, knownlabels, continue_training=False):
+    """Abstract class for models"""
+
+    def train(self, dataset, trainingdoc_ids, knownlabels, continue_training=False):
+        """Train the model"""
         raise NotImplementedError()
+
     def predict(self, doc):
+        """Predict label for doc"""
         raise NotImplementedError()
+
     def cleanup(self):
+        """Release resources taken by this model"""
         raise NotImplementedError()
+
     def get_top_topics(self, dataset, doc_ids):
+        """Get top topics"""
         raise NotImplementedError()
 

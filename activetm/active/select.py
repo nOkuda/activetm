@@ -1,7 +1,7 @@
 import copy
 import logging
-from .selectors import distance_diversity
-from .selectors import balanced
+from activetm.active.selectors import distance_diversity
+from activetm.active.selectors import balanced
 
 def reservoir(candidates, rnd, num_to_choose):
     candidates_size = len(candidates)

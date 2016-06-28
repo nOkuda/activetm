@@ -1,9 +1,11 @@
+import numpy as np
+
+
 def pR2(model, words, labels, labelmean):
-    total_ss = 0.0
-    residual_ss = 0.0
-    for (text, label) in zip(words, labels):
-        prediction = model.predict(text)
-        residual_ss += (label - prediction)**2
-        total_ss += (label - labelmean)**2
-    return 1.0 - (residual_ss / total_ss)
+    totalss = np.power(np.subtract(labels, labelmean), 2).sum()
+    predictions = []
+    for word in words:
+        predictions.append(model.predict(word))
+    residual = np.power(np.subtract(labels, predictions), 2).sum()
+    return 1 - (residual / totalss)
 
