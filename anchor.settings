@@ -1,0 +1,27 @@
+# corpus options
+pickle  amazon.pickle
+corpus  /net/roi/okuda/data/amazon/amazon.txt
+labels  /net/roi/okuda/data/amazon/amazon.response
+
+# filter options
+stopwords   /net/roi/okuda/data/stopwords.txt
+rare    5
+common  1500
+smalldoc    5
+pregenerate YES
+
+# experiment options
+group   anchor_random
+seed    531
+select  jsd_toptopic_centroid
+testsize    1000
+startlabeled    100
+endlabeled  150
+increment   10
+candsize    500
+
+# model options
+model   semi_ridge_anchor
+cseed  531
+numtopics   20
+numtrain    1
