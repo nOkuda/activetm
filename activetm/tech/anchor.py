@@ -115,11 +115,21 @@ class AbstractAnchor(abstract.AbstractModel):
         # print 'Training set size:', trainingset.M.sum()
         for _ in range(self.numtrain):
             pdim = 1000 if trainingset.vocab_size > 1000 else trainingset.vocab_size
-            anchors = \
+            # print('# Starting gramschmidt')
+            anchors, anchor_indices = \
                 ankura.anchor.gramschmidt_anchors(trainingset,
                                                   self.numtopics,
-                                                  0.1 * len(trainingset.titles),
-                                                  project_dim=pdim)
+                                                  0.015 * len(trainingset.titles),
+                                                  project_dim=pdim,
+                                                  return_indices=True)
+            '''
+            sorted_anchors = np.sort(anchor_indices)
+            if (sorted_anchors[1:] == sorted_anchors[:-1]).any():
+                print('Duplicate anchor word!')
+                for i in range(self.numtopics):
+                    print(anchor_indices[i])
+            '''
+            # print('# Finished gramschmidt')
             topics = ankura.topic.recover_topics(trainingset,
                                                  anchors,
                                                  _get_epsilon(trainingset.num_docs))
