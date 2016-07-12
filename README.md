@@ -138,12 +138,13 @@ Gibbs sampling to perform inference.
 
 #### Settings for `*_anchor`
 
-These are implementations of anchor words.  Whereas `ridge_anchor`
+These are implementations of anchor words.
 * `ridge_anchor` is supervised anchor words via ridge regression
 * `semi_ridge_anchor` is semisupervised anchor words via ridge regression
 * `gp_anchor` is supervised anchor words via Gaussian process regression
 * `semi_gp_anchor` is semisupervised anchor words via Gaussian process regression
 
+These are the required settings for `*_anchor`:
 * `numtopics` takes an integer value specifying the number of topics the model
   considers.
 * `numtrain` takes an integer value specifying the number of anchor words
