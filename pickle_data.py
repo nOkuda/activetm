@@ -1,4 +1,4 @@
-from __future__ import division
+"""Build pickle for corpus"""
 
 import argparse
 import datetime
@@ -7,27 +7,27 @@ import pickle
 import time
 
 import ankura.pipeline
-from ankura import tokenize
 
 from activetm import labeled
 from activetm import utils
 
-def get_dataset(settings):
-    PIPELINE = []
-    if settings['corpus'].find('*') >= 0:
-        PIPELINE.append((ankura.pipeline.read_glob, settings['corpus'], tokenize.simple))
-    else:
-        PIPELINE.append((ankura.pipeline.read_file, settings['corpus'], tokenize.simple))
-    PIPELINE.extend([
-            (ankura.pipeline.filter_stopwords, settings['stopwords']),
-            (ankura.pipeline.filter_rarewords, int(settings['rare'])),
-            (ankura.pipeline.filter_commonwords, int(settings['common'])),
-            (ankura.pipeline.filter_smalldocs, int(settings['smalldoc']))])
-    if settings['pregenerate'] == 'YES':
-        PIPELINE.append((ankura.pipeline.pregenerate_doc_tokens))
-    return ankura.pipeline.run_pipeline(PIPELINE)
 
-if __name__ == '__main__':
+def get_dataset(settings):
+    """Get dataset"""
+    if settings['corpus'].find('*') >= 0:
+        dataset = ankura.pipeline.read_glob(settings['corpus'])
+    else:
+        dataset = ankura.pipeline.read_file(settings['corpus'])
+    dataset = ankura.pipeline.filter_stopwords(dataset, settings['stopwords'])
+    dataset = ankura.pipeline.filter_rarewords(dataset, int(settings['rare']))
+    dataset = ankura.pipeline.filter_commonwords(dataset, int(settings['common']))
+    dataset = ankura.pipeline.filter_smalldocs(dataset, int(settings['smalldoc']))
+    if settings['pregenerate'] == 'YES':
+        dataset = ankura.pipeline.pregenerate_doc_tokens(dataset)
+    return dataset
+
+
+def _run():
     parser = argparse.ArgumentParser(description='Pickler of ActiveTM datasets')
     parser.add_argument('settings', help=\
             '''the path to a file containing settings, as described in \
@@ -48,4 +48,8 @@ if __name__ == '__main__':
     import_time = datetime.timedelta(seconds=end-start)
     with open(os.path.join(args.outputdir, pickle_name+'_import.time'), 'w') as ofh:
         ofh.write('# import time: {:s}\n'.format(str(import_time)))
+
+
+if __name__ == '__main__':
+    _run()
 
