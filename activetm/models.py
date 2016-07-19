@@ -42,7 +42,11 @@ def build(rng, settings):
     elif 'anchor' in settings['model'] and settings['model'] in FACTORY:
         num_topics = int(settings['numtopics'])
         num_train = int(settings['numtrain'])
-        return FACTORY[settings['model']](rng, num_topics, num_train)
+        expgrad_epsilon = float(settings['expgrad_epsilon'])
+        return FACTORY[settings['model']](rng,
+                                          num_topics,
+                                          num_train,
+                                          expgrad_epsilon)
     else:
         raise Exception('Unknown model "'+settings['model']+'"; aborting')
 

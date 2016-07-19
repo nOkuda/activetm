@@ -6,7 +6,7 @@ labels  /net/roi/okuda/data/amazon/amazon.response
 # filter options
 stopwords   /net/roi/okuda/data/stopwords.txt
 rare    5
-common  1500
+common  30000
 smalldoc    5
 pregenerate YES
 
@@ -21,7 +21,8 @@ increment   10
 candsize    500
 
 # model options
-model   semi_ridge_anchor
+model   ridge_anchor
 cseed  531
 numtopics   20
 numtrain    1
+expgrad_epsilon 1e-4

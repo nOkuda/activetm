@@ -149,3 +149,5 @@ These are the required settings for `*_anchor`:
   considers.
 * `numtrain` takes an integer value specifying the number of anchor words
   instances to train during on training iteration.
+* `expgrad_epsilon` is the epsilon value used to check for convergence in the
+  exponentiated gradient algorithm.
