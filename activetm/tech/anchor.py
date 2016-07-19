@@ -84,7 +84,7 @@ class AbstractAnchor(abstract.AbstractModel):
         #   self.vocab_size
         #   self.topicses
         #   self.weightses
-        #   self.samplers
+        #   self.anchorses
 
     #pylint:disable=attribute-defined-outside-init,too-many-locals
     def train(self,
@@ -112,10 +112,10 @@ class AbstractAnchor(abstract.AbstractModel):
         self.topicses = []
         self.weightses = []
         self.predictors = []
+        self.anchorses = []
         # print 'Training set size:', trainingset.M.sum()
         for _ in range(self.numtrain):
             pdim = 1000 if trainingset.vocab_size > 1000 else trainingset.vocab_size
-            # print('# Starting gramschmidt')
             anchors, anchor_indices = \
                 ankura.anchor.gramschmidt_anchors(trainingset,
                                                   self.numtopics,
@@ -129,6 +129,7 @@ class AbstractAnchor(abstract.AbstractModel):
                 for i in range(self.numtopics):
                     print(anchor_indices[i])
             '''
+            self.anchorses.append(anchor_indices)
             # print('# Finished gramschmidt')
             topics = ankura.topic.recover_topics(trainingset,
                                                  anchors,
