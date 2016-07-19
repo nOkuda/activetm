@@ -44,7 +44,11 @@ class LabeledDataset(ankura.pipeline.Dataset):
         ankura.pipeline.Dataset.__init__(self, dataset.docwords, dataset.vocab, dataset.titles)
         self.labels = labels
         # precompute vanilla Q beforehand (useful for semi-supervised)
-        self._dataset_cooccurrences = ankura.pipeline.Dataset.compute_cooccurrences(self)
+        ankura.pipeline.Dataset.compute_cooccurrences(self)
+        self._dataset_cooccurrences = self._cooccurrences
+        # don't keep self._cooccurrences, since we want compute_cooccurrences to
+        # compute the proper augmented Q later
+        self._cooccurrences = None
 
     def compute_cooccurrences(self):
         orig_height, orig_width = self._dataset_cooccurrences.shape
@@ -59,19 +63,18 @@ class LabeledDataset(ankura.pipeline.Dataset):
                 labeled_docs.append(i)
         # TODO extract information directly (indexing into matrix is slow)
         labeled_docwords = self.docwords[:, np.array(labeled_docs)]
+        # Make weighted sum for labels
         reg_sums = labeled_docwords.dot(np.array(regressands))
         # summing rows of sparse matrix returns a row matrix; but we want a
         # numpy array
         vocab_counts = np.array(labeled_docwords.sum(axis=1).T)[0]
-        # divide rows by vocabulary counts
-        uncumulated = np.zeros(reg_sums.shape)
+        #pylint:disable=consider-using-enumerate
         for i in range(len(vocab_counts)):
             if vocab_counts[i] > 0:
-                uncumulated[i, :] = reg_sums[i, :] / vocab_counts[i]
+                # divide by vocabulary count
+                self._cooccurrences[i, -2] = reg_sums[i] / vocab_counts[i]
             # if vocab_counts[i] == 0, reg_sums[i, :] == np.zeros
         # TODO was the above sufficient for making semi-supervised work?
-        # sum rows to get average regressand value for each vocabulary item
-        self._cooccurrences[:, -2] = uncumulated.sum(axis=1)
         # fill in second augmented column with 1 - average
         self._cooccurrences[:, -1] = 1.0 - self._cooccurrences[:, -2]
 
