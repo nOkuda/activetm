@@ -4,9 +4,11 @@ import argparse
 import datetime
 import os
 import pickle
+import re
 import time
 
 import ankura.pipeline
+from ankura import tokenize
 
 from activetm import labeled
 from activetm import utils
@@ -15,13 +17,25 @@ from activetm import utils
 def get_dataset(settings):
     """Get dataset"""
     if settings['corpus'].find('*') >= 0:
-        dataset = ankura.pipeline.read_glob(settings['corpus'])
+        sentenceend = re.compile(r'\.([A-Z])')
+        frusdelimiters = re.compile(r'\s+|\(\W*|\)\W*')
+        def frussplitter(text):
+            """Split according to Frus"""
+            sentencified = sentenceend.sub(r' \g<1>', text)
+            return frusdelimiters.split(sentencified)
+        def frustokenizer(text):
+            """Tokenize according to Frus"""
+            return tokenize.simple(text, splitter=frussplitter)
+        dataset = ankura.pipeline.read_glob(settings['corpus'],
+                                            tokenizer=frustokenizer)
     else:
         dataset = ankura.pipeline.read_file(settings['corpus'])
     dataset = ankura.pipeline.filter_stopwords(dataset, settings['stopwords'])
     dataset = ankura.pipeline.filter_rarewords(dataset, int(settings['rare']))
-    dataset = ankura.pipeline.filter_commonwords(dataset, int(settings['common']))
-    dataset = ankura.pipeline.filter_smalldocs(dataset, int(settings['smalldoc']))
+    dataset = ankura.pipeline.filter_commonwords(dataset,
+                                                 int(settings['common']))
+    dataset = ankura.pipeline.filter_smalldocs(dataset,
+                                               int(settings['smalldoc']))
     if settings['pregenerate'] == 'YES':
         dataset = ankura.pipeline.pregenerate_doc_tokens(dataset)
     return dataset
