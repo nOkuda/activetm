@@ -11,11 +11,15 @@ from . import abstract
 from .. import labeled
 
 
-def buildsupervised(dataset, trainingdoc_ids, knownresp):
-    """Construct training set and vocab mapping for supervised learning"""
+def get_filtered_for_train(dataset, trainingdoc_ids):
+    """Get filtered Dataset
+
+    Return a Dataset with only train_doc_ids in its docwords matrix; vocabulary
+    is filtered for word types that no longer exist in Dataset
+    """
     tmp = ankura.pipeline.Dataset(dataset.docwords[:, trainingdoc_ids],
                                   dataset.vocab,
-                                  [dataset.titles[t] for t in trainingdoc_ids])
+                                  [dataset.titles[tid] for tid in trainingdoc_ids])
     corpus_to_train_vocab = [-1] * len(dataset.vocab)
     counter = 0
     for i in range(len(dataset.vocab)):
@@ -27,18 +31,29 @@ def buildsupervised(dataset, trainingdoc_ids, knownresp):
             corpus_to_train_vocab[i] = counter
             counter += 1
     filtered = ankura.pipeline.filter_rarewords(tmp, 1)
+    return filtered, corpus_to_train_vocab
+
+
+def get_labels_for_train(dataset, trainingdoc_ids, knownresp):
+    """Get labels for train_doc_ids"""
     labels = {}
     for doc, resp in zip(trainingdoc_ids, knownresp):
         labels[dataset.titles[doc]] = resp
+    return labels
+
+
+def buildsupervised(dataset, trainingdoc_ids, knownresp):
+    """Construct training set and vocab mapping for supervised learning"""
+    filtered, corpus_to_train_vocab = get_filtered_for_train(dataset,
+                                                             trainingdoc_ids)
+    labels = get_labels_for_train(dataset, trainingdoc_ids, knownresp)
     trainingset = labeled.LabeledDataset(filtered, labels)
     return trainingset, corpus_to_train_vocab, list(range(0, len(trainingdoc_ids)))
 
 
 def buildsemisupervised(dataset, trainingdoc_ids, knownresp):
     """Construct training set and vocab mapping for semi-supervised learning"""
-    labels = {}
-    for doc, resp in zip(trainingdoc_ids, knownresp):
-        labels[dataset.titles[doc]] = resp
+    labels = get_labels_for_train(dataset, trainingdoc_ids, knownresp)
     trainingset = labeled.LabeledDataset(dataset, labels)
     return trainingset, list(range(0, len(dataset.vocab))), trainingdoc_ids
 
@@ -55,7 +70,7 @@ class AbstractAnchor(abstract.AbstractModel):
                  regressor,
                  trainingsetbuilder,
                  expgrad_epsilon):
-        """SupervisedAnchor requires the following parameters:
+        """AbstractAnchor requires the following parameters:
             * rng :: random.Random
                 a random number generator
             * numtopics :: int
@@ -67,6 +82,8 @@ class AbstractAnchor(abstract.AbstractModel):
             * trainingsetbuilder
                 function that constructs the training set and a mapping of vocab
                 space from corpus to training set
+            * expgrad_epsilon :: float
+                epsilon for exponentiated gradient descent
         """
         self.rng = rng
         self.numtopics = numtopics
@@ -150,7 +167,7 @@ class AbstractAnchor(abstract.AbstractModel):
             features = self._predict_topics(i, docws)
             # make sure that sklearn knows this is only one example with
             # multiple features, not multiple examples with one feature each
-            guess = self.predictors[i].predict(features.reshape(1, -1))
+            guess = self.predictors[i].predict(features.reshape((1, -1)))
             resultslist.append(guess)
         return np.mean(resultslist)
 
