@@ -1,12 +1,13 @@
+"""Code to run experiment"""
 import argparse
 import datetime
-import numpy as np
 import os
 import pickle
 import random
 import socket
-import sys
 import time
+
+import numpy as np
 
 from activetm.active import evaluate
 from activetm.active import select
@@ -15,6 +16,7 @@ from activetm import utils
 
 
 def partition_data_ids(num_docs, rng, settings):
+    """Partition dataset into test, train, and unlabeled sets"""
     TEST_SIZE = int(settings['testsize'])
     START_LABELED = int(settings['startlabeled'])
     shuffled_doc_ids = list(range(num_docs))
@@ -26,6 +28,7 @@ def partition_data_ids(num_docs, rng, settings):
 
 
 def _run():
+    """Run experiment"""
     parser = argparse.ArgumentParser(description='Job runner for ActiveTM '
             'experiments')
     parser.add_argument('settings', help=\
@@ -93,15 +96,20 @@ def _run():
         model.train(dataset, labeled_doc_ids, known_labels)
         # print('Trained model')
         sandt_end = time.time()
-        metric = evaluate.pR2(model,
-                              test_words,
-                              test_labels,
-                              test_labels_mean)
+        count = 0
+        predictions = evaluate.get_predictions(model, test_words)
+        pr2 = evaluate.pR2(predictions,
+                           test_labels,
+                           test_labels_mean)
+        maes = evaluate.mean_absolute_errors(predictions, test_labels)
+        np.savetxt(utils.get_mae_out_name(trueoutputdir, args.label, count),
+                   maes)
         results.append([len(labeled_doc_ids),
                 datetime.timedelta(seconds=time.time()-start).total_seconds(),
                 datetime.timedelta(seconds=sandt_end-sandt_start).total_seconds(),
-                metric])
+                pr2])
         while len(labeled_doc_ids) < END_LABELED and len(unlabeled_doc_ids) > 0:
+            count += 1
             sandt_start = time.time()
             # must make unlabeled_doc_ids (which is a set) into a list
             candidates = select.reservoir(list(unlabeled_doc_ids), rng, CAND_SIZE)
@@ -113,12 +121,15 @@ def _run():
                 unlabeled_doc_ids.remove(c)
             model.train(dataset, labeled_doc_ids, known_labels, True)
             sandt_end = time.time()
-            metric = evaluate.pR2(model, test_words, test_labels,
-                    test_labels_mean)
+            predictions = evaluate.get_predictions(model, test_words)
+            pr2 = evaluate.pR2(predictions, test_labels, test_labels_mean)
+            maes = evaluate.mean_absolute_errors(predictions, test_labels)
+            np.savetxt(utils.get_mae_out_name(trueoutputdir, args.label, count),
+                       maes)
             results.append([len(labeled_doc_ids),
                     datetime.timedelta(seconds=time.time()-start).total_seconds(),
                     datetime.timedelta(seconds=sandt_end-sandt_start).total_seconds(),
-                    metric])
+                    pr2])
         model.cleanup()
 
         output = []

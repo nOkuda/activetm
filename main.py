@@ -1,5 +1,4 @@
 import argparse
-import numpy as np
 import datetime
 from email.mime.text import MIMEText
 import logging
@@ -9,6 +8,8 @@ import subprocess
 import sys
 import threading
 import time
+
+import numpy as np
 
 import ankura
 
@@ -186,15 +187,17 @@ def get_stats(mat):
     mat_errs_plus = np.percentile(mat, 75, axis=0) - mat_means
     return mat_medians, mat_means, mat_errs_plus, mat_errs_minus
 
-def make_plots(outputdir, dirs):
+def make_plots(outputdir, dirs, loss_delta):
     colors = plot.get_separate_colors(len(dirs))
     dirs.sort()
     count_plot = plot.Plotter(colors)
     select_and_train_plot = plot.Plotter(colors)
     time_plot = plot.Plotter(colors)
+    mae_plot = plot.Plotter(colors)
     ymax = float('-inf')
     for d in dirs:
-        data = np.array(get_data(os.path.join(outputdir, d)))
+        curdir = os.path.join(outputdir, d)
+        data = np.array(get_data(curdir))
         # for the first document, read off first dimension (the labeled set
         # counts)
         counts = data[0,0,:]
@@ -210,15 +213,48 @@ def make_plots(outputdir, dirs):
         times_mat = data[:,1,:]
         times_medians, times_means, times_errs_minus, times_errs_plus = \
                 get_stats(times_mat)
-        count_plot.plot(counts, ys_means, d, ys_medians, [ys_errs_minus,
-            ys_errs_plus])
-        time_plot.plot(times_means, ys_means, d, ys_medians, [ys_errs_minus,
-            ys_errs_plus], times_medians, [times_errs_minus, times_errs_plus])
+        count_plot.plot(
+            counts,
+            ys_means,
+            d,
+            ys_medians,
+            [ys_errs_minus, ys_errs_plus])
+        time_plot.plot(
+            times_means,
+            ys_means,
+            d,
+            ys_medians,
+            [ys_errs_minus, ys_errs_plus],
+            times_medians,
+            [times_errs_minus, times_errs_plus])
         select_and_train_mat = data[:,2,:]
         sandt_medians, sandt_means, sandt_errs_minus, sandt_errs_plus = \
-                get_stats(select_and_train_mat)
-        select_and_train_plot.plot(counts, sandt_means, d, sandt_medians,
-                [sandt_errs_minus, sandt_errs_plus])
+            get_stats(select_and_train_mat)
+        select_and_train_plot.plot(
+            counts,
+            sandt_means,
+            d,
+            sandt_medians,
+            [sandt_errs_minus, sandt_errs_plus])
+        # get mae results
+        losses = []
+        for maedir in os.listdir(curdir):
+            curmaedir = os.path.join(curdir, maedir)
+            if os.is_dir(curmaedir):
+                losses.append([])
+                for i in range(len(counts)):
+                    maedata = np.loadtxt(os.path.join(curmaedir, str(i)))
+                    # generalized zero-one loss
+                    losses[-1].append(np.sum(maedata < loss_delta) / len(maedata))
+        losses = np.array(losses)
+        mae_medians, mae_means, mae_errs_minus, mae_errs_plus = \
+            get_stats(losses)
+        mae_plot.plot(
+            counts,
+            mae_means,
+            d,
+            mae_medians,
+            [mae_errs_minus, mae_errs_plus])
     corpus = os.path.basename(outputdir)
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
@@ -287,10 +323,12 @@ if __name__ == '__main__':
             logging.getLogger(__name__).error('Cannot write output to: '+args.outputdir)
             sys.exit(-1)
         groups = get_groups(args.config)
-        pickle_data(hosts, generate_settings(args.config), args.working_dir, args.outputdir)
-        run_jobs(hosts, generate_settings(args.config), args.working_dir,
+        settings = generate_settings(args.config)
+        pickle_data(hosts, settings, args.working_dir, args.outputdir)
+        run_jobs(hosts, settings, args.working_dir,
                 args.outputdir)
-        make_plots(args.outputdir, groups)
+        loss_delta = float(settings.get('loss_delta'), 0.01)
+        make_plots(args.outputdir, groups, )
         run_time = datetime.datetime.now() - begin_time
         with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
             ofh.write(str(run_time))
