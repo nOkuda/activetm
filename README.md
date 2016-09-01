@@ -53,7 +53,7 @@ Note also that there is an example settings file:  `example.settings`.
 These settings are required for every run.
 
 * `pickle` takes a string which names the pickle file created for the data set
-* `corpus` takes one of two string.  One is a glob pattern specifying where the
+* `corpus` takes one of two strings.  One is a glob pattern specifying where the
   corpus can be found.  Check the `ankura.pipeline.read_glob` documentation for
   further details of this use.  The other is the path to a file containing
   documents all in one file.  Check the `ankura.pipeline.read_file` for futher
@@ -96,6 +96,9 @@ These settings are required for every run.
   many documents will be added to the labeled set between training runs,
   `candsize` specifies how many documents become candidates to become part of
   the labeled set.
+* `loss_delta` takes a float value specifying the percentage off from the true
+  value a predicated value can be and still considered correct, according to
+  generalized zero-one loss.
 * `model` takes a string value specifying the type of model to use for training.
   The options are the keys of `models.FACTORY`.
 
