@@ -96,9 +96,9 @@ These settings are required for every run.
   many documents will be added to the labeled set between training runs,
   `candsize` specifies how many documents become candidates to become part of
   the labeled set.
-* `loss_delta` takes a float value specifying the percentage off from the true
-  value a predicated value can be and still considered correct, according to
-  generalized zero-one loss.
+* `deltas` takes a string value specifying the path to  file that lists a corpus
+  name associated with its loss delta (for use in calculating generalized
+  zero-one loss).
 * `model` takes a string value specifying the type of model to use for training.
   The options are the keys of `models.FACTORY`.
 

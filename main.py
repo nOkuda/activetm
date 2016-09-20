@@ -187,7 +187,7 @@ def get_stats(mat):
     mat_errs_plus = np.percentile(mat, 75, axis=0) - mat_means
     return mat_medians, mat_means, mat_errs_plus, mat_errs_minus
 
-def make_plots(outputdir, dirs, loss_delta):
+def make_plots(outputdir, dirs, deltas):
     colors = plot.get_separate_colors(len(dirs))
     dirs.sort()
     count_plot = plot.Plotter(colors)
@@ -195,9 +195,13 @@ def make_plots(outputdir, dirs, loss_delta):
     time_plot = plot.Plotter(colors)
     mae_plot = plot.Plotter(colors)
     ymax = float('-inf')
+    corpus = os.path.basename(outputdir)
+    print(corpus)
     for d in dirs:
         curdir = os.path.join(outputdir, d)
+        print('\t', d)
         data = np.array(get_data(curdir))
+        print('\t', data.shape)
         # for the first document, read off first dimension (the labeled set
         # counts)
         counts = data[0,0,:]
@@ -237,10 +241,11 @@ def make_plots(outputdir, dirs, loss_delta):
             sandt_medians,
             [sandt_errs_minus, sandt_errs_plus])
         # get mae results
+        loss_delta = float(deltas[corpus])
         losses = []
         for maedir in os.listdir(curdir):
             curmaedir = os.path.join(curdir, maedir)
-            if os.is_dir(curmaedir):
+            if os.path.isdir(curmaedir):
                 losses.append([])
                 for i in range(len(counts)):
                     maedata = np.loadtxt(os.path.join(curmaedir, str(i)))
@@ -255,7 +260,6 @@ def make_plots(outputdir, dirs, loss_delta):
             d,
             mae_medians,
             [mae_errs_minus, mae_errs_plus])
-    corpus = os.path.basename(outputdir)
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
     count_plot.set_ylim([-0.05, ymax])
@@ -269,6 +273,9 @@ def make_plots(outputdir, dirs, loss_delta):
     select_and_train_plot.set_ylabel('Time to select and train')
     select_and_train_plot.savefig(os.path.join(outputdir,
         corpus+'.select_and_train.pdf'))
+    mae_plot.set_xlabel('Number of Labeled Documents')
+    mae_plot.set_ylabel('Zero-One Loss, '+str(loss_delta))
+    mae_plot.savefig(os.path.join(outputdir, corpus+'.zero_one_loss.pdf'))
 
 def send_notification(email, outdir, run_time):
     msg = MIMEText('Run time: '+str(run_time))
@@ -327,8 +334,8 @@ if __name__ == '__main__':
         pickle_data(hosts, settings, args.working_dir, args.outputdir)
         run_jobs(hosts, settings, args.working_dir,
                 args.outputdir)
-        loss_delta = float(settings.get('loss_delta'), 0.01)
-        make_plots(args.outputdir, groups, )
+        deltas = utils.parse_settings(settings['deltas'])
+        make_plots(args.outputdir, groups, deltas)
         run_time = datetime.datetime.now() - begin_time
         with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
             ofh.write(str(run_time))
