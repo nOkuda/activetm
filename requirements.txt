@@ -1,4 +1,4 @@
 -e git+https://github.com/jlund3/ankura#egg=ankura
 numpy
 scipy
-sklearn
+sklearn >= 0.18

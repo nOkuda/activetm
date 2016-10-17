@@ -1,11 +1,13 @@
 """A supervised anchor words implementation for regression"""
 
-from .gaussian_process.gpr import GaussianProcessRegressor
-from .gaussian_process.kernels import DotProduct
-from sklearn.linear_model import Ridge
-import ankura
 import heapq
+
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import DotProduct
+from sklearn.linear_model import Ridge
 import numpy as np
+
+import ankura
 
 from . import abstract
 from .. import labeled

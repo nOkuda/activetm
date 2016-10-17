@@ -21,7 +21,7 @@ increment   10
 candsize    500
 
 # model options
-model   ridge_anchor
+model   gp_anchor
 cseed  531
 numtopics   20
 numtrain    1
