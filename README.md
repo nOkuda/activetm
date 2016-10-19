@@ -154,3 +154,11 @@ These are the required settings for `*_anchor`:
   instances to train during on training iteration.
 * `expgrad_epsilon` is the epsilon value used to check for convergence in the
   exponentiated gradient algorithm.
+
+### Deltas Text
+
+In order to compute generalized zero-one loss, a margin of acceptable error is
+necessary.  In order to support differing margins of error per corpus, you can
+specify a deltas text.  Every line of this file has a corpus name (one of the
+subdirectories in the output directory) followed by whitespace followed by the
+margin of error.
