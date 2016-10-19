@@ -269,7 +269,7 @@ class SemiRidgeAnchor(AbstractAnchor):
 
 def build_gp():
     """Build Gaussian process"""
-    return GaussianProcessRegressor(kernel=DotProduct())
+    return GaussianProcessRegressor(kernel=DotProduct(), normalize_y=True)
 
 
 class AbstractGPAnchor(AbstractAnchor):
