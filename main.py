@@ -10,7 +10,6 @@ import sys
 import threading
 import time
 
-from sklearn.gaussian_process import GaussianProcessRegressor
 import numpy as np
 
 from activetm import plot
@@ -153,6 +152,18 @@ def pickle_data(hosts, sspaths, working_dir, outputdir):
         thread.join()
 
 
+def get_corpora(sspaths):
+    """Find corpus names"""
+    result = set()
+    for setting in generate_settings(sspaths):
+        corpus = os.path.splitext(
+            os.path.basename(
+                utils.get_pickle_name(setting)))[0]
+        if corpus not in result:
+            result.add(corpus)
+    return result
+
+
 def run_jobs(hosts, sspaths, working_dir, outputdir):
     """Run all submain processes
 
@@ -192,12 +203,7 @@ def extract_data(fpath):
         for line in ifh:
             line = line.strip()
             if line and not line.startswith('#'):
-                results = line.split()
-                if len(data) == 0:
-                    for _ in range(len(results)):
-                        data.append([])
-                for i, result in enumerate(results):
-                    data[i].append(float(result))
+                data.append([float(result) for result in line.split()])
     return data
 
 
@@ -211,76 +217,41 @@ def get_data(dirname):
     return data
 
 
-def get_stats(mat):
-    """Compute various statistics on mat"""
-    # compute the medians along the columns
-    mat_medians = np.median(mat, axis=0)
-    # compute the means along the columns
-    mat_means = np.mean(mat, axis=0)
-    # find difference of means from first quartile along the columns
-    mat_errs_minus = mat_means - np.percentile(mat, 25, axis=0)
-    # compute third quartile along the columns; find difference from means
-    mat_errs_plus = np.percentile(mat, 75, axis=0) - mat_means
-    return mat_medians, mat_means, mat_errs_plus, mat_errs_minus
-
-
 #pylint:disable-msg=too-many-locals
 def make_plots(outputdir, dirs, deltas):
     """Make plots"""
-    colors = plot.get_separate_colors(len(dirs))
-    dirs.sort()
-    count_plot = plot.Plotter(colors)
-    select_and_train_plot = plot.Plotter(colors)
-    time_plot = plot.Plotter(colors)
-    mae_plot = plot.Plotter(colors)
-    ymax = float('-inf')
+    # colors = plot.get_separate_colors(len(dirs))
+    count_plot = plot.Plotter()
+    select_and_train_plot = plot.Plotter()
+    time_plot = plot.Plotter()
+    mae_plot = plot.Plotter()
     corpus = os.path.basename(outputdir)
-    # TODO see if this can get cleaned up
     print(corpus)
+    dirs.sort()
     for curdirname in dirs:
-        gpr = GaussianProcessRegressor(normalize_y=True)
         curdir = os.path.join(outputdir, curdirname)
         print('\t', curdirname)
         data = np.array(get_data(curdir))
-        print('\t', data.shape)
         # for the first document, read off first dimension (the labeled set
         # counts)
-        counts = data[0, 0, :]
-        # set up a 2D matrix with each experiment on its own row and each
-        # experiment's pR^2 results in columns
-        ys_mat = data[:, -1, :]
-        ys_medians, ys_means, ys_errs_minus, ys_errs_plus = get_stats(ys_mat)
-        ys_errs_plus_max = max(ys_errs_plus + ys_means)
-        if ys_errs_plus_max > ymax:
-            ymax = ys_errs_plus_max
-        # set up a 2D matrix with each experiment on its own row and each
-        # experiment's time results in columns
-        times_mat = data[:, 1, :]
-        times_medians, times_means, times_errs_minus, times_errs_plus = \
-                get_stats(times_mat)
+        counts = data[0, :, 0]
+        # set up a 2D matrix with each experiment's pR^2 results in rows
+        ys_mat = data[:, :, -1]
         count_plot.plot(
             counts,
-            ys_means,
-            curdirname,
-            ys_medians,
-            [ys_errs_minus, ys_errs_plus])
+            ys_mat,
+            curdirname)
+        # set up a 2D matrix with each experiment's time results in rows
+        times_mat = data[:, :, 1]
         time_plot.plot(
-            times_means,
-            ys_means,
-            curdirname,
-            ys_medians,
-            [ys_errs_minus, ys_errs_plus],
-            times_medians,
-            [times_errs_minus, times_errs_plus])
-        select_and_train_mat = data[:, 2, :]
-        sandt_medians, sandt_means, sandt_errs_minus, sandt_errs_plus = \
-            get_stats(select_and_train_mat)
+            times_mat,
+            ys_mat,
+            curdirname)
+        select_and_train_mat = data[:, :, 2]
         select_and_train_plot.plot(
             counts,
-            sandt_means,
-            curdirname,
-            sandt_medians,
-            [sandt_errs_minus, sandt_errs_plus])
+            select_and_train_mat,
+            curdirname)
         # get mae results
         loss_delta = float(deltas[corpus])
         '''
@@ -294,22 +265,16 @@ def make_plots(outputdir, dirs, deltas):
                     # generalized zero-one loss
                     losses[-1].append(np.sum(maedata < loss_delta) / len(maedata))
         losses = np.array(losses)
-        mae_medians, mae_means, mae_errs_minus, mae_errs_plus = \
-            get_stats(losses)
         mae_plot.plot(
             counts,
-            mae_means,
-            d,
-            mae_medians,
-            [mae_errs_minus, mae_errs_plus])
+            losses,
+            curdirname)
         '''
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
-    count_plot.set_ylim([-0.05, ymax])
     count_plot.savefig(os.path.join(outputdir, corpus+'.counts.pdf'))
     time_plot.set_xlabel('Time elapsed (seconds)')
     time_plot.set_ylabel('pR$^2$')
-    time_plot.set_ylim([-0.05, ymax])
     time_plot.savefig(os.path.join(
         outputdir,
         corpus+'.times.pdf'))
@@ -321,6 +286,8 @@ def make_plots(outputdir, dirs, deltas):
     mae_plot.set_xlabel('Number of Labeled Documents')
     mae_plot.set_ylabel('Zero-One Loss, '+str(loss_delta))
     mae_plot.savefig(os.path.join(outputdir, corpus+'.zero_one_loss.pdf'))
+    for curplot in [count_plot, time_plot, select_and_train_plot, mae_plot]:
+        curplot.close()
 
 
 def send_notification(email, outdir, run_time):
@@ -405,7 +372,12 @@ def _run():
             args.config,
             args.working_dir,
             args.outputdir)
-        make_plots(args.outputdir, groups, utils.parse_settings(args.deltastxt))
+        corpora = get_corpora(args.config)
+        for corpus in corpora:
+            make_plots(
+                os.path.join(args.outputdir, corpus),
+                groups,
+                utils.parse_settings(args.deltastxt))
         run_time = datetime.datetime.now() - begin_time
         with open(os.path.join(args.outputdir, 'run_time'), 'w') as ofh:
             ofh.write(str(run_time))
