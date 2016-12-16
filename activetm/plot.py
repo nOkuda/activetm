@@ -31,11 +31,9 @@ def get_stats(mat):
     mat_medians = np.median(mat, axis=0)
     # compute the means along the columns
     mat_means = np.mean(mat, axis=0)
-    # find difference of means from first quartile along the columns
-    mat_errs_minus = mat_means - np.percentile(mat, 25, axis=0)
-    # compute third quartile along the columns; find difference from means
-    mat_errs_plus = np.percentile(mat, 75, axis=0) - mat_means
-    return mat_medians, mat_means, mat_errs_plus, mat_errs_minus
+    # compute standard deviation
+    mat_stddev = np.std(mat, axis=0)
+    return mat_medians, mat_means, mat_stddev, mat_stddev
 
 
 def _build_gpx(xdata):
