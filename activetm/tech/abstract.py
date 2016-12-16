@@ -18,3 +18,6 @@ class AbstractModel:
         """Get top topics"""
         raise NotImplementedError()
 
+    def get_topic_compositions(self, dataset, doc_ids):
+        """Get topic compositions"""
+        raise NotImplementedError()

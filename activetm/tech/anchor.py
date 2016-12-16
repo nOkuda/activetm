@@ -197,13 +197,16 @@ class AbstractAnchor(abstract.AbstractModel):
     def cleanup(self):
         pass
 
-    def get_expected_topic_counts(self, dataset, doc_ids, chain_num, _):
-        """Get expected topic counts"""
+    def get_topic_compositions(self, dataset, doc_ids):
+        """Get topic compositions"""
         result = []
         for doc in doc_ids:
             docws = self._convert_vocab_space(dataset.doc_tokens(doc))
-            result.append(self._predict_topics(chain_num, docws))
-        return result
+            tmp = []
+            for chain_num in range(len(self.topicses)):
+                tmp.append(self._predict_topics(chain_num, docws))
+            result.append(np.mean(tmp, axis=0))
+        return np.array(result)
 
     def get_topic_distribution(self, topic, chain_num, _):
         """Get top distribution"""

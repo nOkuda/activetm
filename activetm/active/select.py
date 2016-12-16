@@ -22,6 +22,7 @@ def random(dataset, labeled_ids, candidates, model, rnd, num_to_choose):
 factory = {
     'random': random,
     'jsd_toptopic_centroid': distance_diversity.jsd_toptopic_centroid,
-    'jsd_toptopic_balanced': balanced.jsd_toptopic_balanced
+    'jsd_toptopic_balanced': balanced.jsd_toptopic_balanced,
+    'jsd_comp_centroid': distance_diversity.jsd_comp_centroid
 }
 
