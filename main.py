@@ -254,7 +254,6 @@ def make_plots(outputdir, dirs, deltas):
             curdirname)
         # get mae results
         loss_delta = float(deltas[corpus])
-        '''
         losses = []
         for maedir in os.listdir(curdir):
             curmaedir = os.path.join(curdir, maedir)
@@ -269,7 +268,6 @@ def make_plots(outputdir, dirs, deltas):
             counts,
             losses,
             curdirname)
-        '''
     count_plot.set_xlabel('Number of Labeled Documents')
     count_plot.set_ylabel('pR$^2$')
     count_plot.savefig(os.path.join(outputdir, corpus+'.counts.pdf'))
