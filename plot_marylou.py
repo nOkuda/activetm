@@ -31,8 +31,8 @@ def run():
     ]
     selections = [
         'random',
-        'distance',
-        'balanced'
+        'top_topic',
+        'topic_comp'
     ]
     for corpus in corpora:
         main.make_plots(
