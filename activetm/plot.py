@@ -65,7 +65,9 @@ class Plotter(object):
 
     def _line_plot(self, xdata, ydata, color, label):
         """Make a line plot; update maximum y"""
-        self.ymax = np.max(ydata)
+        cur_ymax = np.max(ydata)
+        if cur_ymax > self.ymax:
+            self.ymax = cur_ymax
         self.axis.plot(
             xdata,
             ydata,
@@ -76,7 +78,9 @@ class Plotter(object):
     def _error_plot(self, xdata, ydata, color, label):
         """Make a line plot with error bars; update maximum y"""
         ys_medians, ys_means, ys_errs_minus, ys_errs_plus = get_stats(ydata)
-        self.ymax = np.max(ys_medians + ys_errs_plus)
+        cur_ymax = np.max(ys_medians + ys_errs_plus)
+        if cur_ymax > self.ymax:
+            self.ymax = cur_ymax
         self.axis.errorbar(
             xdata,
             ys_means,
@@ -127,7 +131,9 @@ class Plotter(object):
             color=color,
             linestyle='dashed',
             linewidth=1.5)
-        self.ymax = np.max(pred_quants[1])
+        cur_ymax = np.max(pred_quants[1])
+        if cur_ymax > self.ymax:
+            self.ymax = cur_ymax
 
     def plot(self, xdata, ydata, label):
         """Add data to plot
